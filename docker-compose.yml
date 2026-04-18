@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-proy2}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_PORT:-55432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d:ro
@@ -44,15 +44,13 @@ services:
   frontend:
     build:
       context: ./frontend
+      args:
+        VITE_API_BASE_URL: http://localhost:${BACKEND_PORT:-8000}
     container_name: proyecto2-frontend
     restart: unless-stopped
     working_dir: /app/frontend
     environment:
       VITE_API_BASE_URL: http://localhost:${BACKEND_PORT:-8000}
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
-    volumes:
-      - ./frontend:/app/frontend
-      - /app/frontend/node_modules
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
     depends_on:
@@ -60,4 +58,3 @@ services:
 
 volumes:
   postgres_data:
-

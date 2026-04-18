@@ -1,61 +1,101 @@
 # Proyecto2-BD
 
-Proyecto 2 del curso `cc3088 - Bases de Datos 1`. La aplicacion modela una tienda con control de inventario, ventas, reportes y una base de datos relacional en PostgreSQL.
+Aplicacion full stack para `Proyecto 2` de `cc3088 - Bases de Datos 1`. El sistema cubre:
 
-- `frontend/`: interfaz web en Vue 3 + Vite
-- `backend/`: API en FastAPI con SQL explicito
-- `db/init/`: scripts de inicializacion de PostgreSQL
-- `diseno-bd.md`: diseno de base de datos, modelo relacional y normalizacion
+- storefront publico con catalogo y checkout
+- cuentas cliente con perfil e historial de pedidos
+- panel administrativo con CRUD, ventas y reportes
+- PostgreSQL con SQL explicito y transacciones marcadas manualmente
 
-## Diseno de base de datos
+## Estructura
 
-La documentacion principal esta dividida asi:
+- `frontend/`: Vue 3 + Vite
+- `backend/`: FastAPI + `psycopg`
+- `db/init/001_schema.sql`: esquema, indices y `vw_resumen_ventas`
+- `db/init/002_seed.sql`: burner data coherente para demo y grading
+- `diseno-bd.md`: DER, modelo relacional y normalizacion
 
-- `diseno-bd.md`: entidades, relaciones, DER, modelo relacional, normalizacion a 3FN e indices
-- `db/init/001_schema.sql`: DDL ejecutable con tablas, llaves, restricciones, indices y `vw_resumen_ventas`
-- `db/init/002_seed.sql`: datos iniciales para probar el arranque del sistema
+## Credenciales requeridas
 
-## Arquitectura
-
-- rutas publicas para inicio, catalogo y checkout
-- rutas de cuenta para login, perfil e historial de pedidos
-- rutas administrativas para productos, categorias, ventas y reportes
-- modulos del backend:
-  - `auth`
-  - `catalog`
-  - `orders`
-  - `inventory`
-  - `reporting`
-  - `admin`
-
-## Variables de entorno
-
-Antes de levantar Docker, copiar el archivo de ejemplo:
-
-```bash
-cp .env.example .env
-```
-
-Credenciales de base de datos usadas por el proyecto:
+Base de datos:
 
 - usuario: `proy2`
 - password: `secret`
 
-## Ejecucion
+Credenciales demo de la aplicacion:
+
+- admin: `admin@proyecto2.local` / `admin123`
+- cliente: `cliente@proyecto2.local` / `client123`
+
+## Levantar desde cero
 
 ```bash
+cp .env.example .env
 docker compose up --build
 ```
 
 Servicios esperados:
 
-- PostgreSQL on `localhost:5432`
-- FastAPI on `http://localhost:8000`
-- Vue app on `http://localhost:5173`
+- frontend: [http://localhost:5173](http://localhost:5173)
+- backend: [http://localhost:8000](http://localhost:8000)
+- postgres: `localhost:55432`
 
-## Usuarios iniciales
+Prueba rapida recomendada del backend:
 
-El script de datos iniciales crea dos usuarios para probar los flujos principales:
+```bash
+docker compose exec -T backend pytest tests/test_app_structure.py -q
+```
 
-- administrador: `admin@proyecto2.local`
-- cliente: `cliente@proyecto2.local`
+## Superficies principales
+
+Storefront:
+
+- `/`
+- `/catalog`
+- `/catalog/:sku`
+- `/checkout`
+- `/checkout/resultado/:codigo`
+
+Cuenta:
+
+- `/account/login`
+- `/account/register`
+- `/account/profile`
+- `/account/orders`
+
+Admin:
+
+- `/admin`
+- `/admin/products`
+- `/admin/categories`
+- `/admin/sales`
+- `/admin/reports`
+
+## Reglas importantes del proyecto
+
+- No se usa ORM.
+- Las consultas SQL relevantes se ejecutan desde la aplicacion web.
+- El checkout usa transaccion explicita con `SERIALIZABLE`.
+- El reporte principal visible/exportable es `ventas por rango de fechas`.
+- La exportacion avanzada incluida en esta entrega es `CSV`.
+
+## Datos de prueba
+
+`db/init/002_seed.sql` genera:
+
+- 25+ filas por tablas de negocio/transaccionales evaluables
+- productos con stock bajo
+- pedidos guest y pedidos de usuarios registrados
+- pagos aprobados y rechazados
+- historial de estados
+- restocks y ajustes de inventario
+
+Esto permite probar:
+
+- joins y subqueries visibles en UI
+- agregaciones y `HAVING`
+- una consulta con `CTE`
+- una `VIEW` usada por el backend
+- CRUD administrativo
+- historial de pedidos
+- exportacion CSV
