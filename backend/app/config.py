@@ -29,6 +29,5 @@ def get_settings() -> Settings:
         postgres_user=os.getenv("POSTGRES_USER", "proy2"),
         postgres_password=os.getenv("POSTGRES_PASSWORD", "secret"),
         postgres_host=os.getenv("POSTGRES_HOST", "localhost"),
-        postgres_port=int(os.getenv("POSTGRES_PORT", "5432")),
+        postgres_port=int(os.getenv("POSTGRES_PORT", "55432")),
     )
-

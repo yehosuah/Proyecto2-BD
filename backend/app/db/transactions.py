@@ -1,13 +1,14 @@
+from fastapi import HTTPException, status
+
+
 SERIALIZABLE = "SERIALIZABLE"
 
 
-def serializable_checkout_statements() -> list[str]:
-    return [
-        "BEGIN",
-        f"SET TRANSACTION ISOLATION LEVEL {SERIALIZABLE}",
-        "-- Lock cart products with SELECT ... FOR UPDATE",
-        "-- Insert pedido, detalle_pedido, pago",
-        "-- Update producto.stock_actual",
-        "COMMIT",
-    ]
+def begin_serializable(conn) -> None:
+    conn.execute("BEGIN")
+    conn.execute(f"SET TRANSACTION ISOLATION LEVEL {SERIALIZABLE}")
 
+
+def rollback_with_error(conn, detail: str, code: int = status.HTTP_409_CONFLICT) -> None:
+    conn.rollback()
+    raise HTTPException(status_code=code, detail=detail)
