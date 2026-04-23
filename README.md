@@ -5,7 +5,17 @@ Base scaffold for `Proyecto 2` of `cc3088 - Bases de Datos 1`. The repository no
 - `frontend/`: Vue 3 + Vite single app for storefront, account, and admin surfaces
 - `backend/`: FastAPI app with explicit domain partitions and no ORM
 - `db/init/`: PostgreSQL schema, seed data, and view bootstrap
-- `diseno-bd.md`: current database design draft and transaction notes
+- `diseno-bd.md`: complete database design documentation for rubric section I
+
+## Database design documentation
+
+The full repository documentation for rubric section `I. Diseno de base de datos` now lives in:
+
+- `diseno-bd.md`: conceptual model, ER diagram, relational notation, 3FN justification, DDL summary, index rationale, and seed strategy
+- `db/init/001_schema.sql`: executable DDL with tables, constraints, indexes, and `vw_resumen_ventas`
+- `db/init/002_seed.sql`: bootstrap seed file and documented entry point for the realistic test dataset
+
+If you need to review only the database-design deliverables first, start with `diseno-bd.md` and then cross-check the SQL files under `db/init/`.
 
 ## Current architecture
 
