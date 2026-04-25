@@ -13,9 +13,9 @@ import CatalogView from "../views/store/CatalogView.vue";
 import HomeView from "../views/store/HomeView.vue";
 
 const routes = [
-  { path: "/", name: "home", component: HomeView, meta: { surface: "storefront" } },
-  { path: "/catalog", name: "catalog", component: CatalogView, meta: { surface: "storefront" } },
-  { path: "/checkout", name: "checkout", component: CheckoutView, meta: { surface: "storefront" } },
+  { path: "/", name: "home", component: HomeView, meta: { surface: "store" } },
+  { path: "/catalog", name: "catalog", component: CatalogView, meta: { surface: "store" } },
+  { path: "/checkout", name: "checkout", component: CheckoutView, meta: { surface: "store" } },
   { path: "/account/login", name: "account-login", component: LoginView, meta: { surface: "account" } },
   { path: "/account/profile", name: "account-profile", component: ProfileView, meta: { surface: "account" } },
   { path: "/account/orders", name: "account-orders", component: OrdersView, meta: { surface: "account" } },
@@ -32,4 +32,3 @@ const router = createRouter({
 });
 
 export default router;
-

@@ -3,10 +3,10 @@
     <header class="hero">
       <div>
         <p class="eyebrow">Proyecto 2</p>
-        <h1>Storefront + Admin foundation</h1>
+        <h1>Tienda e inventario</h1>
         <p class="lede">
-          Vue route scaffold for public shopping, client account flows, and admin back-office
-          management.
+          Aplicacion web para administrar productos, registrar ventas y consultar reportes desde una
+          base de datos relacional.
         </p>
       </div>
       <nav class="top-nav">
@@ -20,11 +20,11 @@
 
     <main class="page-frame">
       <aside class="surface-guide">
-        <h2>Superficies</h2>
+        <h2>Secciones</h2>
         <ul>
-          <li>Storefront publico</li>
+          <li>Tienda</li>
           <li>Cuenta cliente</li>
-          <li>Back office admin</li>
+          <li>Administracion</li>
         </ul>
       </aside>
 
@@ -38,4 +38,3 @@
 <script setup>
 import { RouterLink, RouterView } from "vue-router";
 </script>
-

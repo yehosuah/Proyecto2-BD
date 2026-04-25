@@ -4,9 +4,8 @@
       <span class="surface-meta">Historial</span>
       <h2 class="surface-title">Pedidos del usuario</h2>
       <p class="surface-text">
-        Superficie reservada para listar pedidos confirmados y fallidos del usuario autenticado.
+        En esta seccion se mostraran los pedidos realizados por el cliente autenticado.
       </p>
     </article>
   </section>
 </template>
-

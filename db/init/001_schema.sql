@@ -91,9 +91,9 @@ CREATE TABLE detalle_pedido (
 CREATE TABLE pago (
     id_pago BIGSERIAL PRIMARY KEY,
     id_pedido BIGINT NOT NULL UNIQUE REFERENCES pedido(id_pedido),
-    metodo VARCHAR(20) NOT NULL CHECK (metodo IN ('cash', 'card', 'transfer')),
+    metodo VARCHAR(20) NOT NULL CHECK (metodo IN ('efectivo', 'tarjeta', 'transferencia')),
     monto NUMERIC(12,2) NOT NULL CHECK (monto >= 0),
-    estado VARCHAR(20) NOT NULL CHECK (estado IN ('pending', 'approved', 'rejected')),
+    estado VARCHAR(20) NOT NULL CHECK (estado IN ('pendiente', 'aprobado', 'rechazado')),
     codigo_simulado VARCHAR(40) NOT NULL UNIQUE,
     procesado_en TIMESTAMP
 );
@@ -159,4 +159,3 @@ GROUP BY
     p.tipo_entrega,
     p.estado_pedido,
     p.estado_pago;
-

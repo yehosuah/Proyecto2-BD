@@ -5,9 +5,9 @@ from app.api.router import api_router
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="Proyecto 2 Store API",
+        title="API Proyecto 2",
         version="0.1.0",
-        description="Skeleton API for the Proyecto 2 storefront/admin platform.",
+        description="API para la tienda, inventario, ventas y reportes del Proyecto 2.",
     )
 
     @app.get("/health")
@@ -19,4 +19,3 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
-
