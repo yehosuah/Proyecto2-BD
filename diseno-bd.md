@@ -2,7 +2,7 @@
 
 ## 1. Proposito del documento
 
-Este archivo deja documentada en el repositorio toda la seccion `I. Diseno de base de datos` de la rubrica del proyecto. La idea es que el lector pueda encontrar en un solo lugar:
+Este documento presenta el diseno de base de datos del proyecto. Incluye:
 
 - el modelo conceptual;
 - el modelo relacional;
@@ -11,42 +11,29 @@ Este archivo deja documentada en el repositorio toda la seccion `I. Diseno de ba
 - la estrategia de indices;
 - el estado y la estrategia del script de datos de prueba.
 
-La evidencia ejecutable del diseno vive en estos archivos:
+La parte ejecutable del diseno esta en estos archivos:
 
 - `db/init/001_schema.sql`: DDL fisico, indices y `VIEW`.
 - `db/init/002_seed.sql`: datos de arranque y base para las semillas de prueba.
 
-## 2. Trazabilidad contra la rubrica
+## 2. Alcance y decisiones de negocio
 
-La seccion `I. Diseno de base de datos` del PDF pide estos entregables:
+Este diseno usa las siguientes decisiones de negocio:
 
-| Criterio del PDF | Donde queda documentado en el repo | Evidencia ejecutable |
-| --- | --- | --- |
-| Diagrama ER correcto: entidades, atributos, relaciones y cardinalidades | Secciones 4, 5 y 6 de este documento | `db/init/001_schema.sql` |
-| Modelo relacional documentado | Seccion 7 de este documento | `db/init/001_schema.sql` |
-| Normalizacion justificada hasta 3FN: dependencias funcionales y pasos aplicados | Seccion 8 de este documento | Se refleja en la separacion de tablas del esquema |
-| DDL completo con `PRIMARY KEY`, `FOREIGN KEY` y `NOT NULL` | Seccion 9 de este documento | `db/init/001_schema.sql` |
-| Script de datos de prueba realistas | Seccion 11 de este documento | `db/init/002_seed.sql` |
-| Indices definidos explicitamente y justificados | Seccion 10 de este documento | `db/init/001_schema.sql` |
-
-## 3. Alcance y decisiones de negocio
-
-Este diseno parte de las decisiones ya aprobadas para el proyecto:
-
-- Frontend unico en Vue con tres superficies: storefront publico, area de cuenta cliente y back office admin.
-- Backend unico en FastAPI con SQL explicito y sin ORM.
+- Frontend en Vue con tienda publica, area de cuenta cliente y panel administrativo.
+- Backend en FastAPI con SQL explicito y sin ORM.
 - PostgreSQL como DBMS.
 - Pago simulado interno, sin integracion con pasarelas reales.
 - Soporte para `delivery` y `pickup`.
-- Guest checkout permitido.
+- Compras permitidas sin crear cuenta.
 - Usuarios registrados con perfil e historial de pedidos.
-- Admin autenticado, sembrado en la base, con acceso al back office y a rutas cliente.
+- Administrador autenticado con acceso al panel administrativo.
 - Productos simples de un solo SKU.
-- Reabastecimiento liviano mas ajustes directos de stock.
+- Reabastecimiento simple y ajustes directos de stock.
 
 La meta del modelo es priorizar claridad academica, trazabilidad de reglas de negocio y soporte para la parte SQL/transaccional del proyecto.
 
-## 4. Entidades principales
+## 3. Entidades principales
 
 - `rol`: define los tipos de usuario del sistema (`admin`, `cliente`).
 - `usuario`: almacena cuentas autenticadas.
@@ -63,7 +50,7 @@ La meta del modelo es priorizar claridad academica, trazabilidad de reglas de ne
 - `detalle_reabastecimiento`: detalle por producto dentro de un reabastecimiento.
 - `ajuste_inventario`: correccion directa de stock hecha por admin.
 
-## 5. Relaciones y cardinalidades
+## 4. Relaciones y cardinalidades
 
 | Relacion | Cardinalidad | Obligatoria | Regla de negocio |
 | --- | --- | --- | --- |
@@ -85,7 +72,7 @@ La meta del modelo es priorizar claridad academica, trazabilidad de reglas de ne
 | `USUARIO` -> `AJUSTE_INVENTARIO` | 1:N | Todo ajuste directo debe quedar asociado a admin | |
 | `PRODUCTO` -> `AJUSTE_INVENTARIO` | 1:N | Todo ajuste afecta un producto | |
 
-## 6. DER documentado
+## 5. DER documentado
 
 ```mermaid
 erDiagram
@@ -242,7 +229,7 @@ erDiagram
     }
 ```
 
-## 7. Modelo relacional documentado
+## 6. Modelo relacional documentado
 
 Notacion relacional del esquema:
 
@@ -261,7 +248,7 @@ Notacion relacional del esquema:
 - `DETALLE_REABASTECIMIENTO(`id_detalle_reab` PK, id_reabastecimiento FK -> REABASTECIMIENTO.id_reabastecimiento, id_producto FK -> PRODUCTO.id_producto, cantidad, costo_unitario, UQ(id_reabastecimiento, id_producto))`
 - `AJUSTE_INVENTARIO(`id_ajuste` PK, id_producto FK -> PRODUCTO.id_producto, id_admin FK -> USUARIO.id_usuario, cantidad_delta, motivo, creado_en)`
 
-## 8. Normalizacion hasta 3FN
+## 7. Normalizacion hasta 3FN
 
 ### 8.1 Punto de partida no normalizado
 
@@ -360,7 +347,7 @@ Hay dos decisiones que no rompen 3FN y conviene dejar justificadas:
 - `PRODUCTO.stock_actual` se almacena fisicamente en lugar de calcularse siempre desde movimientos. Es una decision operativa para simplificar consultas de catalogo, admin y validacion de checkout. La trazabilidad sigue existiendo en `DETALLE_PEDIDO`, `DETALLE_REABASTECIMIENTO` y `AJUSTE_INVENTARIO`.
 - `PEDIDO.nombre_cliente`, `PEDIDO.email_cliente` y `PEDIDO.telefono_cliente` guardan la fotografia del momento de compra. Aunque el pedido pueda estar ligado a `USUARIO`, estos datos no dependen transitivamente del usuario sino del evento comercial concreto.
 
-## 9. DDL completo documentado
+## 8. DDL completo documentado
 
 El DDL ejecutable del proyecto esta en `db/init/001_schema.sql`. La tabla siguiente resume las restricciones importantes para cada relacion.
 
@@ -375,7 +362,7 @@ El DDL ejecutable del proyecto esta en `db/init/001_schema.sql`. La tabla siguie
 | `pedido` | `id_pedido` | `id_usuario -> usuario.id_usuario` | `codigo_publico`, `nombre_cliente`, `email_cliente`, `tipo_entrega`, `estado_pedido`, `estado_pago`, `creado_en`; `codigo_publico` `UNIQUE`; `CHECK(tipo_entrega IN ('delivery', 'pickup'))` |
 | `direccion_entrega` | `id_direccion_entrega` | `id_pedido -> pedido.id_pedido` | `id_pedido`, `linea_1`, `ciudad`, `departamento`; `id_pedido` `UNIQUE` para respetar la relacion 1:1 |
 | `detalle_pedido` | `id_detalle_pedido` | `id_pedido -> pedido.id_pedido`, `id_producto -> producto.id_producto` | `id_pedido`, `id_producto`, `cantidad`, `precio_unitario`; `CHECK(cantidad > 0)`; `CHECK(precio_unitario >= 0)`; `UNIQUE(id_pedido, id_producto)` |
-| `pago` | `id_pago` | `id_pedido -> pedido.id_pedido` | `id_pedido`, `metodo`, `monto`, `estado`, `codigo_simulado`; `id_pedido` `UNIQUE`; `codigo_simulado` `UNIQUE`; `CHECK(metodo IN ('cash', 'card', 'transfer'))`; `CHECK(estado IN ('pending', 'approved', 'rejected'))` |
+| `pago` | `id_pago` | `id_pedido -> pedido.id_pedido` | `id_pedido`, `metodo`, `monto`, `estado`, `codigo_simulado`; `id_pedido` `UNIQUE`; `codigo_simulado` `UNIQUE`; `CHECK(metodo IN ('efectivo', 'tarjeta', 'transferencia'))`; `CHECK(estado IN ('pendiente', 'aprobado', 'rechazado'))` |
 | `historial_estado_pedido` | `id_historial` | `id_pedido -> pedido.id_pedido`, `id_usuario -> usuario.id_usuario` | `id_pedido`, `estado_nuevo`, `creado_en` |
 | `reabastecimiento` | `id_reabastecimiento` | `id_proveedor -> proveedor.id_proveedor`, `id_admin -> usuario.id_usuario` | `id_admin`, `creado_en` |
 | `detalle_reabastecimiento` | `id_detalle_reab` | `id_reabastecimiento -> reabastecimiento.id_reabastecimiento`, `id_producto -> producto.id_producto` | `id_reabastecimiento`, `id_producto`, `cantidad`, `costo_unitario`; `CHECK(cantidad > 0)`; `CHECK(costo_unitario >= 0)`; `UNIQUE(id_reabastecimiento, id_producto)` |
@@ -385,11 +372,11 @@ Notas de implementacion fisica:
 
 - El archivo SQL ya incluye `PRIMARY KEY`, `FOREIGN KEY`, `NOT NULL`, `UNIQUE` y `CHECK`.
 - El archivo tambien define la `VIEW` `vw_resumen_ventas`, util para la parte SQL/reportes del proyecto.
-- La creacion de tablas respeta el orden de dependencias foraneas para que el bootstrap de PostgreSQL funcione desde Docker.
+- La creacion de tablas respeta el orden de dependencias foraneas para que PostgreSQL pueda inicializar la base desde Docker.
 
-## 10. Indices y objetos auxiliares
+## 9. Indices y objetos auxiliares
 
-### 10.1 Indices explicitamente definidos
+### 9.1 Indices explicitamente definidos
 
 El esquema actual define estos indices:
 
@@ -406,7 +393,7 @@ El esquema actual define estos indices:
 - `CREATE INDEX idx_pago_estado ON pago(estado);`
   - Justificacion: acelera filtros de pagos aprobados, rechazados o pendientes.
 
-### 10.2 VIEW incluida en el esquema
+### 9.2 VIEW incluida en el esquema
 
 La base ya define:
 
@@ -424,123 +411,28 @@ Su objetivo es exponer por pedido:
 
 Esto mantiene la logica agregada dentro de SQL y deja una pieza reutilizable para el backend.
 
-## 11. Datos de prueba documentados
+## 10. Datos de prueba documentados
 
-### 11.1 Estado actual del seed ejecutable
+El archivo `db/init/002_seed.sql` contiene datos iniciales para levantar y probar el sistema. Actualmente carga roles, usuarios de prueba, categorias, proveedores y productos. Las tablas transaccionales quedan listas para registrar pedidos, direcciones, detalles, pagos, cambios de estado, reabastecimientos, ajustes de inventario y sesiones de usuario.
 
-El archivo `db/init/002_seed.sql` hoy cumple la funcion de bootstrap del scaffold. Inserta:
+## 11. Flujos transaccionales que este diseno soporta
 
-- 2 roles (`admin`, `cliente`);
-- 2 usuarios demo;
-- 3 categorias;
-- 2 proveedores;
-- 3 productos.
+### 11.1 Checkout
 
-Todavia no puebla tablas transaccionales como:
+El checkout crea el pedido, registra el pago y descuenta stock dentro de una transaccion consistente. La operacion inicia con `BEGIN` y `SET TRANSACTION ISOLATION LEVEL SERIALIZABLE`, valida el carrito, bloquea los productos con `SELECT ... FOR UPDATE`, verifica stock, inserta `pedido`, `detalle_pedido` y `pago`, y despues confirma o rechaza la compra segun el resultado del pago simulado. Si el pago se aprueba, se descuenta `producto.stock_actual` y se registra el cambio en `historial_estado_pedido`; si se rechaza, el stock no cambia. Cualquier error, conflicto o falta de stock termina en `ROLLBACK`.
 
-- `pedido`
-- `direccion_entrega`
-- `detalle_pedido`
-- `pago`
-- `historial_estado_pedido`
-- `reabastecimiento`
-- `detalle_reabastecimiento`
-- `ajuste_inventario`
-- `sesion_usuario`
+### 11.2 Reabastecimiento
 
-### 11.2 Como queda documentado el criterio del PDF
+El reabastecimiento aumenta inventario con trazabilidad. La transaccion inserta el encabezado en `reabastecimiento`, guarda las lineas en `detalle_reabastecimiento` y suma las cantidades al `stock_actual` de cada producto afectado. Si ocurre un error, la operacion se revierte con `ROLLBACK`.
 
-El PDF pide un "script de datos de prueba realistas con al menos 25 registros por tabla". Para que el repo deje ese criterio totalmente documentado, se fija esta interpretacion operativa:
+### 11.3 Ajuste directo de inventario
 
-- `db/init/002_seed.sql` es el archivo responsable de esa carga;
-- la version actual del repo es un seed minimo de arranque, no la carga final de evaluacion;
-- la carga final debe poblar no solo catalogos, sino tambien tablas transaccionales para que la UI pueda demostrar `JOIN`, subqueries, agregaciones, `CTE`, `VIEW` y transacciones;
-- si se busca cumplir literalmente el texto del PDF, conviene confirmar con catedra el caso de tablas maestras cerradas como `rol`, porque su cardinalidad natural no crece de forma realista a 25 registros.
+El ajuste directo permite correcciones administrativas controladas. La transaccion bloquea el producto, registra la fila en `ajuste_inventario`, actualiza `stock_actual` y valida que el inventario no quede negativo antes de confirmar. Si la validacion falla, se revierte el cambio.
 
-### 11.3 Perfil de datos realistas recomendado
+### 11.4 Login con sesion
 
-Para la ampliacion del seed, el repositorio deja documentado este perfil minimo recomendado:
+El login valida credenciales contra `usuario`, genera un token o identificador de sesion y guarda su hash en `sesion_usuario`. El logout conserva trazabilidad marcando `revocada_en`.
 
-- `usuario`: 1 admin y un lote de clientes con nombres, correos y telefonos distintos.
-- `categoria`: categorias comerciales reales del dominio elegido.
-- `proveedor`: proveedores con contactos plausibles.
-- `producto`: catalogo amplio, con variedad de precio, estado y stock.
-- `pedido`: compras repartidas en fechas, clientes, metodos de entrega y estados.
-- `detalle_pedido`: lineas suficientes para generar top productos y totales por periodo.
-- `pago`: mezcla de pagos aprobados, rechazados y pendientes.
-- `historial_estado_pedido`: mas de un cambio por algunos pedidos.
-- `reabastecimiento` y `detalle_reabastecimiento`: ingresos de stock en distintas fechas.
-- `ajuste_inventario`: correcciones manuales con motivo.
-- `sesion_usuario`: registros de sesiones para login/logout.
+## 12. Resumen
 
-## 12. Flujos transaccionales que este diseno soporta
-
-### 12.1 Checkout
-
-Objetivo: crear pedido, registrar pago y descontar stock de forma consistente.
-
-Pasos logicos:
-
-1. `BEGIN`
-2. `SET TRANSACTION ISOLATION LEVEL SERIALIZABLE`
-3. validar carrito no vacio;
-4. leer productos del carrito con `SELECT ... FOR UPDATE`;
-5. verificar stock y estado de producto;
-6. insertar `pedido`;
-7. insertar `detalle_pedido`;
-8. registrar `pago`;
-9. si el pago es aprobado:
-   - descontar `producto.stock_actual`;
-   - insertar filas en `historial_estado_pedido`;
-   - confirmar el pedido;
-10. si el pago es rechazado:
-   - registrar rechazo;
-   - no descontar stock;
-11. `COMMIT`;
-12. ante error, conflicto o stock insuficiente: `ROLLBACK`.
-
-### 12.2 Reabastecimiento
-
-Objetivo: aumentar inventario con trazabilidad.
-
-Pasos:
-
-1. `BEGIN`
-2. insertar `reabastecimiento`
-3. insertar `detalle_reabastecimiento`
-4. incrementar `producto.stock_actual`
-5. `COMMIT`
-6. ante error: `ROLLBACK`
-
-### 12.3 Ajuste directo de inventario
-
-Objetivo: permitir correcciones administrativas controladas.
-
-Pasos:
-
-1. `BEGIN`
-2. bloquear producto
-3. insertar `ajuste_inventario`
-4. actualizar `stock_actual`
-5. validar que el stock no quede negativo
-6. `COMMIT`
-7. ante invalidez o error: `ROLLBACK`
-
-### 12.4 Login con sesion
-
-Objetivo: soportar autenticacion de admin y cliente.
-
-Pasos:
-
-1. validar credenciales contra `usuario`
-2. crear token o identificador de sesion
-3. guardar hash en `sesion_usuario`
-4. al logout, marcar `revocada_en`
-
-## 13. Resumen
-
-Con este documento, el repositorio deja trazada la seccion `I. Diseno de base de datos` de la rubrica en tres capas:
-
-- `diseno-bd.md`: modelo conceptual, logico y justificacion academica;
-- `db/init/001_schema.sql`: traduccion fisica del diseno a SQL ejecutable;
-- `db/init/002_seed.sql`: archivo responsable de la carga de prueba, hoy en version scaffold y ya identificado como punto a ampliar para la evaluacion final.
+El diseno separa la explicacion academica en este documento, la traduccion fisica en `db/init/001_schema.sql` y los datos iniciales en `db/init/002_seed.sql`.
