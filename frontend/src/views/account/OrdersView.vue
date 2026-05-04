@@ -1,11 +1,48 @@
 <template>
-  <section class="surface-stack">
-    <article class="surface-card">
-      <span class="surface-meta">Historial</span>
-      <h2 class="surface-title">Pedidos del usuario</h2>
-      <p class="surface-text">
-        En esta seccion se mostraran los pedidos realizados por el cliente autenticado.
-      </p>
-    </article>
-  </section>
+  <article class="card-surface">
+    <div class="section-header">
+      <div>
+        <h1>Historial de pedidos</h1>
+        <p class="muted-copy">Solo aparecen pedidos vinculados a tu cuenta.</p>
+      </div>
+    </div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Codigo</th>
+          <th>Entrega</th>
+          <th>Estado</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="order in orders" :key="order.codigo_publico">
+          <td><RouterLink :to="`/account/orders/${order.codigo_publico}`">{{ order.codigo_publico }}</RouterLink></td>
+          <td>{{ order.tipo_entrega }}</td>
+          <td><StatusPill :value="order.estado_pedido" /></td>
+          <td>{{ money(order.total_pedido) }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </article>
 </template>
+
+<script setup>
+import { onMounted, ref } from "vue";
+import { RouterLink } from "vue-router";
+
+import StatusPill from "../../components/StatusPill.vue";
+import { apiRequest } from "../../lib/api";
+
+const orders = ref([]);
+
+function money(value) {
+  return new Intl.NumberFormat("es-GT", { style: "currency", currency: "GTQ" }).format(value);
+}
+
+onMounted(async () => {
+  const payload = await apiRequest("/api/orders/me");
+  orders.value = payload.items;
+});
+</script>
+
