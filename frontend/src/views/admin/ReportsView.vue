@@ -56,9 +56,14 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
 
+import { requireRouteAccess } from "../../lib/access";
 import { apiFileUrl, apiRequest } from "../../lib/api";
 
+
+const route = useRoute();
+const router = useRouter();
 const sales = reactive({ series: [], summary: null });
 const topProducts = ref([]);
 const lowStock = ref([]);
@@ -91,6 +96,9 @@ async function loadReports() {
   lowStock.value = lowPayload.items;
 }
 
-onMounted(loadReports);
+onMounted(async () => {
+  if (!(await requireRouteAccess(route, router))) return;
+  await loadReports();
+});
 </script>
 

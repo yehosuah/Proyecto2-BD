@@ -43,9 +43,14 @@
 
 <script setup>
 import { onMounted, reactive, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
 
+import { requireRouteAccess } from "../../lib/access";
 import { apiRequest } from "../../lib/api";
 
+
+const route = useRoute();
+const router = useRouter();
 const categories = ref([]);
 const products = ref([]);
 const editingId = ref(null);
@@ -105,6 +110,9 @@ async function removeProduct(productId) {
   await loadData();
 }
 
-onMounted(loadData);
+onMounted(async () => {
+  if (!(await requireRouteAccess(route, router))) return;
+  await loadData();
+});
 </script>
 
