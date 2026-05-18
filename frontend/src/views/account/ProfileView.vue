@@ -15,11 +15,20 @@
 </template>
 
 <script setup>
-import { RouterLink, useRouter } from "vue-router";
+import { onMounted } from "vue";
+import { RouterLink, useRoute, useRouter } from "vue-router";
+
+import { requireRouteAccess } from "../../lib/access";
 
 import { logoutUser, sessionState } from "../../stores/session";
 
+
+const route = useRoute();
 const router = useRouter();
+
+onMounted(async () => {
+  await requireRouteAccess(route, router);
+});
 
 async function logout() {
   await logoutUser();

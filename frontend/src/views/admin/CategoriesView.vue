@@ -31,9 +31,14 @@
 
 <script setup>
 import { onMounted, reactive, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
 
+import { requireRouteAccess } from "../../lib/access";
 import { apiRequest } from "../../lib/api";
 
+
+const route = useRoute();
+const router = useRouter();
 const categories = ref([]);
 const editingId = ref(null);
 const form = reactive({ nombre: "", descripcion: "", activa: true });
@@ -68,6 +73,9 @@ async function removeCategory(categoryId) {
   await loadCategories();
 }
 
-onMounted(loadCategories);
+onMounted(async () => {
+  if (!(await requireRouteAccess(route, router))) return;
+  await loadCategories();
+});
 </script>
 

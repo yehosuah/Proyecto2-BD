@@ -24,7 +24,7 @@
         </nav>
         <div class="store-tools">
           <RouterLink class="store-tools__cart" to="/checkout">Carrito {{ cartState.items.length }}</RouterLink>
-          <RouterLink v-if="sessionState.user?.rol === 'admin'" to="/admin">Admin</RouterLink>
+          <RouterLink v-if="['admin', 'app_admin', 'app_inventory'].includes(sessionState.user?.rol)" to="/admin">Admin</RouterLink>
         </div>
       </header>
 

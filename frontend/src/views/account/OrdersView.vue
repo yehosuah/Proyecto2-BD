@@ -29,11 +29,17 @@
 
 <script setup>
 import { onMounted, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { RouterLink } from "vue-router";
+
+import { requireRouteAccess } from "../../lib/access";
 
 import StatusPill from "../../components/StatusPill.vue";
 import { apiRequest } from "../../lib/api";
 
+
+const route = useRoute();
+const router = useRouter();
 const orders = ref([]);
 
 function money(value) {
@@ -41,6 +47,7 @@ function money(value) {
 }
 
 onMounted(async () => {
+  if (!(await requireRouteAccess(route, router))) return;
   const payload = await apiRequest("/api/orders/me");
   orders.value = payload.items;
 });
