@@ -48,8 +48,14 @@ def get_current_user(session_token: str | None = Cookie(default=None, alias=SESS
 
 
 def require_role(role_name: str) -> Callable:
+    return require_any_role([role_name])
+
+
+def require_any_role(role_names: list[str] | tuple[str, ...]) -> Callable:
+    allowed_roles = set(role_names)
+
     def dependency(user: dict = Depends(get_current_user)) -> dict:
-        if user["rol"] != role_name:
+        if user["rol"] not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="No tienes permisos para esta operacion.",

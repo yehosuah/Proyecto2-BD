@@ -15,8 +15,16 @@ TRUNCATE TABLE
     rol
 RESTART IDENTITY CASCADE;
 
+-- Credenciales demo:
+-- admin@proyecto2.local / admin123
+-- cliente@proyecto2.local / client123
+-- inventario@proyecto2.local / inventario123
+-- reportes@proyecto2.local / reportes123
+-- catalogo@proyecto2.local / catalogo123
+-- ventas@proyecto2.local / ventas123
+
 INSERT INTO rol (nombre)
-VALUES ('admin'), ('cliente');
+VALUES ('admin'), ('cliente'), ('inventario'), ('reportes'), ('catalogo'), ('ventas');
 
 INSERT INTO usuario (
     id_rol,
@@ -42,6 +50,49 @@ VALUES
         'Cliente',
         'Demo',
         '5555-0002'
+    );
+
+
+INSERT INTO usuario (
+    id_rol,
+    email,
+    password_hash,
+    nombre,
+    apellido,
+    telefono
+)
+VALUES
+    (
+        (SELECT id_rol FROM rol WHERE nombre = 'inventario'),
+        'inventario@proyecto2.local',
+        'sha256:f54568eeb40e6872d8df7afffc13608decaee72e20803a0da71309ece6cc73ea',
+        'Inventario',
+        'Demo',
+        '5555-0003'
+    ),
+    (
+        (SELECT id_rol FROM rol WHERE nombre = 'reportes'),
+        'reportes@proyecto2.local',
+        'sha256:baa1e8c9e7a3650b5ab6b0c2b91c2f11c17ed96e67b27fb82c74d90a70a6981a',
+        'Reportes',
+        'Demo',
+        '5555-0004'
+    ),
+    (
+        (SELECT id_rol FROM rol WHERE nombre = 'catalogo'),
+        'catalogo@proyecto2.local',
+        'sha256:2d5fd144b14cd00bdeb7701fce0819c7412a0bf99044df4f77a5fcf64f9c105e',
+        'Catalogo',
+        'Demo',
+        '5555-0005'
+    ),
+    (
+        (SELECT id_rol FROM rol WHERE nombre = 'ventas'),
+        'ventas@proyecto2.local',
+        'sha256:e2151232843fc5ee75d0c8bfc0c74bdcdace97b001a7dab658f7a27ecc8d93f5',
+        'Ventas',
+        'Demo',
+        '5555-0006'
     );
 
 INSERT INTO usuario (

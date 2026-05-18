@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.db.connection import get_connection
-from app.dependencies.auth import require_role
+from app.dependencies.auth import require_any_role
 
 
 router = APIRouter()
@@ -32,7 +32,7 @@ def inventory_health() -> dict[str, str]:
 
 
 @router.get("/low-stock")
-def low_stock(admin: dict = Depends(require_role("admin"))) -> dict:
+def low_stock(admin: dict = Depends(require_any_role(["admin", "inventario"]))) -> dict:
     with get_connection() as conn:
         rows = conn.execute(
             """
@@ -57,7 +57,7 @@ def low_stock(admin: dict = Depends(require_role("admin"))) -> dict:
 
 
 @router.post("/adjustments", status_code=status.HTTP_201_CREATED)
-def create_adjustment(payload: InventoryAdjustmentPayload, admin: dict = Depends(require_role("admin"))) -> dict:
+def create_adjustment(payload: InventoryAdjustmentPayload, admin: dict = Depends(require_any_role(["admin", "inventario"]))) -> dict:
     with get_connection() as conn:
         product = conn.execute(
             "SELECT id_producto, stock_actual FROM producto WHERE id_producto = %s FOR UPDATE",
@@ -97,7 +97,7 @@ def create_adjustment(payload: InventoryAdjustmentPayload, admin: dict = Depends
 
 
 @router.post("/restocks", status_code=status.HTTP_201_CREATED)
-def create_restock(payload: RestockPayload, admin: dict = Depends(require_role("admin"))) -> dict:
+def create_restock(payload: RestockPayload, admin: dict = Depends(require_any_role(["admin", "inventario"]))) -> dict:
     if not payload.detalles:
         raise HTTPException(status_code=422, detail="Debes incluir detalles de reabastecimiento.")
     with get_connection() as conn:

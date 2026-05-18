@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 
 from app.db.connection import get_connection
-from app.dependencies.auth import require_role
+from app.dependencies.auth import require_any_role
 from app.lib.queries import build_sales_report_query
 
 
@@ -14,7 +14,7 @@ def reporting_health() -> dict[str, str]:
 
 
 @router.get("/snapshot")
-def reporting_snapshot(admin: dict = Depends(require_role("admin"))) -> dict:
+def reporting_snapshot(admin: dict = Depends(require_any_role(["admin", "reportes"]))) -> dict:
     with get_connection() as conn:
         sales_rows = conn.execute(
             build_sales_report_query(),
