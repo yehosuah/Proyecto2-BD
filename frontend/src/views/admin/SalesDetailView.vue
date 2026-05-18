@@ -22,12 +22,15 @@
 
 <script setup>
 import { onMounted, ref } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
+
+import { requireRouteAccess } from "../../lib/access";
 
 import StatusPill from "../../components/StatusPill.vue";
 import { apiRequest } from "../../lib/api";
 
 const route = useRoute();
+const router = useRouter();
 const detail = ref(null);
 
 function money(value) {
@@ -46,6 +49,9 @@ async function changeStatus(status) {
   await loadDetail();
 }
 
-onMounted(loadDetail);
+onMounted(async () => {
+  if (!(await requireRouteAccess(route, router))) return;
+  await loadDetail();
+});
 </script>
 

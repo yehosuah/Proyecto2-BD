@@ -39,10 +39,16 @@
 
 <script setup>
 import { onMounted, reactive } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { RouterLink } from "vue-router";
+
+import { requireRouteAccess } from "../../lib/access";
 
 import { apiRequest } from "../../lib/api";
 
+
+const route = useRoute();
+const router = useRouter();
 const snapshot = reactive({
   sales: [],
   top_products: [],
@@ -54,6 +60,7 @@ function money(value) {
 }
 
 onMounted(async () => {
+  if (!(await requireRouteAccess(route, router))) return;
   const [reportPayload, snapshotPayload] = await Promise.all([
     apiRequest("/api/admin/reports/sales"),
     apiRequest("/api/reporting/snapshot"),
