@@ -1,11 +1,13 @@
 import { createRouter, createWebHistory } from "vue-router";
 
 import { ensureSessionLoaded, sessionState } from "../stores/session";
+import { resolveGuardTarget } from "./guard";
 import LoginView from "../views/account/LoginView.vue";
 import OrderDetailView from "../views/account/OrderDetailView.vue";
 import OrdersView from "../views/account/OrdersView.vue";
 import ProfileView from "../views/account/ProfileView.vue";
 import RegisterView from "../views/account/RegisterView.vue";
+import ForbiddenView from "../views/account/ForbiddenView.vue";
 import CategoriesView from "../views/admin/CategoriesView.vue";
 import DashboardView from "../views/admin/DashboardView.vue";
 import ProductsView from "../views/admin/ProductsView.vue";
@@ -31,6 +33,7 @@ const routes = [
   },
   { path: "/account/login", name: "account-login", component: LoginView, meta: { surface: "account" } },
   { path: "/account/register", name: "account-register", component: RegisterView, meta: { surface: "account" } },
+  { path: "/403", name: "forbidden", component: ForbiddenView, meta: { surface: "account" } },
   {
     path: "/account/profile",
     name: "account-profile",
@@ -53,37 +56,37 @@ const routes = [
     path: "/admin",
     name: "admin-dashboard",
     component: DashboardView,
-    meta: { surface: "admin", requiresAdmin: true },
+    meta: { surface: "admin", requiresAuth: true, allowedRoles: ["admin"] },
   },
   {
     path: "/admin/products",
     name: "admin-products",
     component: ProductsView,
-    meta: { surface: "admin", requiresAdmin: true },
+    meta: { surface: "admin", requiresAuth: true, allowedRoles: ["admin"] },
   },
   {
     path: "/admin/categories",
     name: "admin-categories",
     component: CategoriesView,
-    meta: { surface: "admin", requiresAdmin: true },
+    meta: { surface: "admin", requiresAuth: true, allowedRoles: ["admin"] },
   },
   {
     path: "/admin/sales",
     name: "admin-sales",
     component: SalesView,
-    meta: { surface: "admin", requiresAdmin: true },
+    meta: { surface: "admin", requiresAuth: true, allowedRoles: ["admin"] },
   },
   {
     path: "/admin/sales/:codigo",
     name: "admin-sales-detail",
     component: SalesDetailView,
-    meta: { surface: "admin", requiresAdmin: true },
+    meta: { surface: "admin", requiresAuth: true, allowedRoles: ["admin"] },
   },
   {
     path: "/admin/reports",
     name: "admin-reports",
     component: ReportsView,
-    meta: { surface: "admin", requiresAdmin: true },
+    meta: { surface: "admin", requiresAuth: true, allowedRoles: ["admin"] },
   },
 ];
 
@@ -96,13 +99,7 @@ router.beforeEach(async (to) => {
   if (!sessionState.loaded) {
     await ensureSessionLoaded();
   }
-  if (to.meta.requiresAdmin && sessionState.user?.rol !== "admin") {
-    return { name: "account-login", query: { redirect: to.fullPath } };
-  }
-  if (to.meta.requiresAuth && !sessionState.authenticated) {
-    return { name: "account-login", query: { redirect: to.fullPath } };
-  }
-  return true;
+  return resolveGuardTarget(to, sessionState);
 });
 
 export default router;
