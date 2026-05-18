@@ -35,6 +35,8 @@ INSERT INTO usuario (
     telefono
 )
 VALUES
+    -- Credenciales de demo:
+    -- admin@proyecto2.local / admin123
     (
         (SELECT id_rol FROM rol WHERE nombre = 'admin'),
         'admin@proyecto2.local',
@@ -43,13 +45,41 @@ VALUES
         'Demo',
         '5555-0001'
     ),
+    -- cliente@proyecto2.local / cliente123
     (
         (SELECT id_rol FROM rol WHERE nombre = 'cliente'),
         'cliente@proyecto2.local',
-        'sha256:186474c1f2c2f735a54c2cf82ee8e87f2a5cd30940e280029363fecedfc5328c',
+        'sha256:09a31a7001e261ab1e056182a71d3cf57f582ca9a29cff5eb83be0f0549730a9',
         'Cliente',
         'Demo',
         '5555-0002'
+    ),
+    -- inventory@proyecto2.local / inventory123
+    (
+        (SELECT id_rol FROM rol WHERE nombre = 'inventory'),
+        'inventory@proyecto2.local',
+        'sha256:cd63ef271f9f5c81c3ac9e24e544f7e982360ebc027bf4e6b6960485b13f89e7',
+        'Inventory',
+        'Demo',
+        '5555-0003'
+    ),
+    -- sales@proyecto2.local / sales123
+    (
+        (SELECT id_rol FROM rol WHERE nombre = 'sales'),
+        'sales@proyecto2.local',
+        'sha256:6bc0a63cb29c92306020c0a6bbc358cc4628db277dc06e253535e126517ad637',
+        'Sales',
+        'Demo',
+        '5555-0004'
+    ),
+    -- support@proyecto2.local / support123
+    (
+        (SELECT id_rol FROM rol WHERE nombre = 'support'),
+        'support@proyecto2.local',
+        'sha256:a67d22cef2f6639d71b8901b5b2bbee4a2400d92c70e60c179c0fd76d72d6c23',
+        'Support',
+        'Demo',
+        '5555-0005'
     );
 
 
