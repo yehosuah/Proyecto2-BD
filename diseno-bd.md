@@ -436,3 +436,39 @@ El login valida credenciales contra `usuario`, genera un token o identificador d
 ## 12. Resumen
 
 El diseno separa la explicacion academica en este documento, la traduccion fisica en `db/init/001_schema.sql` y los datos iniciales en `db/init/002_seed.sql`.
+
+## 13. Modelo de seguridad DBMS
+
+El control de acceso DBMS se define en `db/init/003_security_roles.sql` usando roles operativos de PostgreSQL con privilegios minimos por caso de uso.
+
+### 13.1 Mapeo explicito: rol de aplicacion ↔ rol DBMS
+
+| Rol de aplicacion (`rol.nombre`) | Rol DBMS operativo | Uso principal |
+| --- | --- | --- |
+| `admin` | `app_admin` | Gestion completa de catalogo, inventario, pedidos, reportes y auditoria operativa |
+| `cliente` | `app_cliente` | Navegacion de catalogo, checkout autenticado y consulta de sus pedidos/sesiones |
+| `guest` (sin fila en `rol`) | `app_invitado` | Navegacion de catalogo y checkout invitado con privilegios minimos |
+
+### 13.2 Matriz de permisos por rol DBMS
+
+| Nombre del rol DBMS | Tablas accesibles | Operaciones permitidas | Restricciones |
+| --- | --- | --- | --- |
+| `app_admin` | Todas las tablas del esquema `public` + `vw_resumen_ventas` | `SELECT/INSERT/UPDATE/DELETE` | Acceso operativo total; no se restringen columnas |
+| `app_cliente` | `rol`, `categoria`, `proveedor`, `producto`, `usuario`, `sesion_usuario`, `pedido`, `direccion_entrega`, `detalle_pedido`, `pago`, `historial_estado_pedido`, `vw_resumen_ventas` | `SELECT` en catalogo y consulta; `INSERT/UPDATE` en `sesion_usuario`; `INSERT` en flujo de checkout | Sin lectura de `usuario.password_hash`; sin `DELETE`; sin escritura sobre `producto`/inventario |
+| `app_invitado` | `categoria`, `producto`, `pedido`, `direccion_entrega`, `detalle_pedido`, `pago`, `vw_resumen_ventas` | `SELECT` de catalogo/reportes basicos + `INSERT` de checkout | Solo lectura en catalogo; sin `UPDATE/DELETE`; sin acceso a tablas de usuario, inventario o administracion |
+
+### 13.3 Ejemplos de `GRANT` / `REVOKE` usados en `003_security_roles.sql`
+
+Ejemplos representativos del script:
+
+- `GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_admin;`
+- `REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC;`
+- `GRANT SELECT ON rol, categoria, proveedor, producto TO app_cliente;`
+- `REVOKE SELECT(password_hash) ON usuario FROM app_cliente;`
+- `GRANT INSERT ON pedido, direccion_entrega, detalle_pedido, pago TO app_invitado;`
+- `REVOKE UPDATE, DELETE ON pedido, direccion_entrega, detalle_pedido, pago FROM app_invitado;`
+
+### 13.4 Permisos sobre vistas y procedimientos
+
+- **Vistas**: `vw_resumen_ventas` recibe `GRANT SELECT` para `app_cliente` y `app_invitado`, y acceso total para `app_admin` por la politica global de tablas del esquema.
+- **Procedimientos/funciones**: en el estado actual del proyecto no hay procedimientos almacenados ni funciones operativas custom; por tanto, `003_security_roles.sql` no define `GRANT EXECUTE` adicionales. Si se agregan, se recomienda otorgar `EXECUTE` solo a `app_admin` o a un rol tecnico especifico por caso de uso.
