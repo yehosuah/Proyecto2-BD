@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field
 
 from app.db.connection import get_connection
-from app.dependencies.auth import require_role
+from app.dependencies.auth import require_any_role, require_role
 from app.lib.queries import build_sales_report_query, export_rows_to_csv
 
 
@@ -36,7 +36,7 @@ def admin_health() -> dict[str, str]:
 
 
 @router.get("/categories")
-def admin_categories(admin: dict = Depends(require_role("admin"))) -> dict:
+def admin_categories(admin: dict = Depends(require_any_role(["admin", "catalogo"]))) -> dict:
     with get_connection() as conn:
         rows = conn.execute(
             """
@@ -103,7 +103,7 @@ def delete_category(category_id: int, admin: dict = Depends(require_role("admin"
 
 
 @router.get("/products")
-def admin_products(admin: dict = Depends(require_role("admin"))) -> dict:
+def admin_products(admin: dict = Depends(require_any_role(["admin", "catalogo", "inventario", "ventas"]))) -> dict:
     with get_connection() as conn:
         rows = conn.execute(
             """
@@ -219,7 +219,7 @@ def delete_product(product_id: int, admin: dict = Depends(require_role("admin"))
 @router.get("/sales")
 def list_sales(
     status_filter: str | None = Query(default=None),
-    admin: dict = Depends(require_role("admin")),
+    admin: dict = Depends(require_any_role(["admin", "ventas", "reportes"])),
 ) -> dict:
     with get_connection() as conn:
         rows = conn.execute(
@@ -245,7 +245,7 @@ def list_sales(
 
 
 @router.get("/sales/{codigo_publico}")
-def get_sale_detail(codigo_publico: str, admin: dict = Depends(require_role("admin"))) -> dict:
+def get_sale_detail(codigo_publico: str, admin: dict = Depends(require_any_role(["admin", "ventas", "reportes"]))) -> dict:
     with get_connection() as conn:
         order = conn.execute(
             """
@@ -330,7 +330,7 @@ def sales_report(
     start_date: str | None = Query(default=None),
     end_date: str | None = Query(default=None),
     status_filter: str | None = Query(default=None, alias="status"),
-    admin: dict = Depends(require_role("admin")),
+    admin: dict = Depends(require_any_role(["admin", "reportes", "ventas"])),
 ) -> dict:
     params = {"start_date": start_date, "end_date": end_date, "status": status_filter}
     with get_connection() as conn:
@@ -354,7 +354,7 @@ def export_sales_csv(
     start_date: str | None = Query(default=None),
     end_date: str | None = Query(default=None),
     status_filter: str | None = Query(default=None, alias="status"),
-    admin: dict = Depends(require_role("admin")),
+    admin: dict = Depends(require_any_role(["admin", "reportes"])),
 ) -> Response:
     params = {"start_date": start_date, "end_date": end_date, "status": status_filter}
     with get_connection() as conn:
@@ -368,7 +368,7 @@ def export_sales_csv(
 
 
 @router.get("/reports/top-products")
-def top_products(admin: dict = Depends(require_role("admin"))) -> dict:
+def top_products(admin: dict = Depends(require_any_role(["admin", "reportes"]))) -> dict:
     with get_connection() as conn:
         rows = conn.execute(
             """
@@ -390,7 +390,7 @@ def top_products(admin: dict = Depends(require_role("admin"))) -> dict:
 
 
 @router.get("/reports/low-stock")
-def low_stock_report(admin: dict = Depends(require_role("admin"))) -> dict:
+def low_stock_report(admin: dict = Depends(require_any_role(["admin", "reportes", "inventario"]))) -> dict:
     with get_connection() as conn:
         rows = conn.execute(
             """
