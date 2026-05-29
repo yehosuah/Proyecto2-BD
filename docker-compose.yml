@@ -1,11 +1,11 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: proyecto2-db
+    container_name: proyecto3-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-proyecto2_bd}
-      POSTGRES_USER: ${POSTGRES_USER:-proy2}
+      POSTGRES_DB: ${POSTGRES_DB:-proyecto3_bd}
+      POSTGRES_USER: ${POSTGRES_USER:-proy3}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret}
     ports:
       - "${POSTGRES_PORT:-55432}:5432"
@@ -13,7 +13,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-proy2} -d ${POSTGRES_DB:-proyecto2_bd}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-proy3} -d ${POSTGRES_DB:-proyecto3_bd}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -21,17 +21,17 @@ services:
   backend:
     build:
       context: ./backend
-    container_name: proyecto2-backend
+    container_name: proyecto3-backend
     restart: unless-stopped
     working_dir: /app/backend
     environment:
       APP_ENV: ${APP_ENV:-development}
-      POSTGRES_DB: ${POSTGRES_DB:-proyecto2_bd}
-      POSTGRES_USER: ${POSTGRES_USER:-proy2}
+      POSTGRES_DB: ${POSTGRES_DB:-proyecto3_bd}
+      POSTGRES_USER: ${POSTGRES_USER:-proy3}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret}
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
-      DATABASE_URL: postgresql://${POSTGRES_USER:-proy2}:${POSTGRES_PASSWORD:-secret}@db:5432/${POSTGRES_DB:-proyecto2_bd}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-proy3}:${POSTGRES_PASSWORD:-secret}@db:5432/${POSTGRES_DB:-proyecto3_bd}
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - ./backend:/app/backend
@@ -46,7 +46,7 @@ services:
       context: ./frontend
       args:
         VITE_API_BASE_URL: http://localhost:${BACKEND_PORT:-8000}
-    container_name: proyecto2-frontend
+    container_name: proyecto3-frontend
     restart: unless-stopped
     working_dir: /app/frontend
     environment:

@@ -1,3 +1,5 @@
+BEGIN;
+
 TRUNCATE TABLE
     ajuste_inventario,
     detalle_reabastecimiento,
@@ -15,16 +17,15 @@ TRUNCATE TABLE
     rol
 RESTART IDENTITY CASCADE;
 
--- Credenciales demo:
--- admin@proyecto2.local / admin123
--- cliente@proyecto2.local / client123
--- inventario@proyecto2.local / inventario123
--- reportes@proyecto2.local / reportes123
--- catalogo@proyecto2.local / catalogo123
--- ventas@proyecto2.local / ventas123
+-- Credenciales demo Proyecto 3:
+-- admin@proyecto3.local / admin123
+-- inventario@proyecto3.local / inventario123
+-- ventas@proyecto3.local / ventas123
+-- reportes@proyecto3.local / reportes123
+-- cliente@proyecto3.local / cliente123
 
 INSERT INTO rol (nombre)
-VALUES ('admin'), ('cliente'), ('inventario'), ('reportes'), ('catalogo'), ('ventas');
+VALUES ('admin'), ('inventario'), ('ventas'), ('reportes'), ('cliente');
 
 INSERT INTO usuario (
     id_rol,
@@ -35,112 +36,46 @@ INSERT INTO usuario (
     telefono
 )
 VALUES
-    -- Credenciales de demo:
-    -- admin@proyecto2.local / admin123
     (
         (SELECT id_rol FROM rol WHERE nombre = 'admin'),
-        'admin@proyecto2.local',
+        'admin@proyecto3.local',
         'sha256:240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9',
         'Admin',
         'Demo',
         '5555-0001'
     ),
-    -- cliente@proyecto2.local / cliente123
     (
-        (SELECT id_rol FROM rol WHERE nombre = 'cliente'),
-        'cliente@proyecto2.local',
-        'sha256:09a31a7001e261ab1e056182a71d3cf57f582ca9a29cff5eb83be0f0549730a9',
-        'Cliente',
+        (SELECT id_rol FROM rol WHERE nombre = 'inventario'),
+        'inventario@proyecto3.local',
+        'sha256:f54568eeb40e6872d8df7afffc13608decaee72e20803a0da71309ece6cc73ea',
+        'Inventario',
         'Demo',
         '5555-0002'
     ),
-    -- inventory@proyecto2.local / inventory123
     (
-        (SELECT id_rol FROM rol WHERE nombre = 'inventory'),
-        'inventory@proyecto2.local',
-        'sha256:cd63ef271f9f5c81c3ac9e24e544f7e982360ebc027bf4e6b6960485b13f89e7',
-        'Inventory',
-        'Demo',
-        '5555-0003'
-    ),
-    -- sales@proyecto2.local / sales123
-    (
-        (SELECT id_rol FROM rol WHERE nombre = 'sales'),
-        'sales@proyecto2.local',
-        'sha256:6bc0a63cb29c92306020c0a6bbc358cc4628db277dc06e253535e126517ad637',
-        'Sales',
-        'Demo',
-        '5555-0004'
-    ),
-    -- support@proyecto2.local / support123
-    (
-        (SELECT id_rol FROM rol WHERE nombre = 'support'),
-        'support@proyecto2.local',
-        'sha256:a67d22cef2f6639d71b8901b5b2bbee4a2400d92c70e60c179c0fd76d72d6c23',
-        'Support',
-        'Demo',
-        '5555-0005'
-    );
-
-
-INSERT INTO usuario (
-    id_rol,
-    email,
-    password_hash,
-    nombre,
-    apellido,
-    telefono
-)
-VALUES
-    (
-        (SELECT id_rol FROM rol WHERE nombre = 'inventario'),
-        'inventario@proyecto2.local',
-        'sha256:f54568eeb40e6872d8df7afffc13608decaee72e20803a0da71309ece6cc73ea',
-        'Inventario',
+        (SELECT id_rol FROM rol WHERE nombre = 'ventas'),
+        'ventas@proyecto3.local',
+        'sha256:e2151232843fc5ee75d0c8bfc0c74bdcdace97b001a7dab658f7a27ecc8d93f5',
+        'Ventas',
         'Demo',
         '5555-0003'
     ),
     (
         (SELECT id_rol FROM rol WHERE nombre = 'reportes'),
-        'reportes@proyecto2.local',
+        'reportes@proyecto3.local',
         'sha256:baa1e8c9e7a3650b5ab6b0c2b91c2f11c17ed96e67b27fb82c74d90a70a6981a',
         'Reportes',
         'Demo',
         '5555-0004'
     ),
     (
-        (SELECT id_rol FROM rol WHERE nombre = 'catalogo'),
-        'catalogo@proyecto2.local',
-        'sha256:2d5fd144b14cd00bdeb7701fce0819c7412a0bf99044df4f77a5fcf64f9c105e',
-        'Catalogo',
+        (SELECT id_rol FROM rol WHERE nombre = 'cliente'),
+        'cliente@proyecto3.local',
+        'sha256:09a31a7001e261ab1e056182a71d3cf57f582ca9a29cff5eb83be0f0549730a9',
+        'Cliente',
         'Demo',
         '5555-0005'
-    ),
-    (
-        (SELECT id_rol FROM rol WHERE nombre = 'ventas'),
-        'ventas@proyecto2.local',
-        'sha256:e2151232843fc5ee75d0c8bfc0c74bdcdace97b001a7dab658f7a27ecc8d93f5',
-        'Ventas',
-        'Demo',
-        '5555-0006'
     );
-
-INSERT INTO usuario (
-    id_rol,
-    email,
-    password_hash,
-    nombre,
-    apellido,
-    telefono
-)
-SELECT
-    (SELECT id_rol FROM rol WHERE nombre = 'cliente'),
-    format('cliente%02s@proyecto2.local', gs),
-    'sha256:186474c1f2c2f735a54c2cf82ee8e87f2a5cd30940e280029363fecedfc5328c',
-    format('Cliente%02s', gs),
-    format('Prueba%02s', gs),
-    format('5555-%04s', 2000 + gs)
-FROM generate_series(1, 28) AS gs;
 
 INSERT INTO sesion_usuario (
     id_sesion,
@@ -150,12 +85,12 @@ INSERT INTO sesion_usuario (
     expira_en
 )
 SELECT
-    md5(format('session-id-%s', gs))::uuid,
-    2 + gs,
-    md5(format('session-token-%s', gs)),
-    CURRENT_TIMESTAMP - make_interval(days => gs % 3),
-    CURRENT_TIMESTAMP + make_interval(days => 10 + gs)
-FROM generate_series(1, 25) AS gs;
+    md5(format('session-id-%s', u.email))::uuid,
+    u.id_usuario,
+    md5(format('session-token-%s', u.email)),
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP + INTERVAL '10 days'
+FROM usuario u;
 
 INSERT INTO categoria (nombre, descripcion)
 VALUES
@@ -285,7 +220,7 @@ INSERT INTO reabastecimiento (
 SELECT
     ((gs - 1) % 25) + 1,
     1,
-    format('Ingreso de inventario %02s', gs),
+    format('Ingreso de inventario %s', lpad(gs::text, 2, '0')),
     TIMESTAMP '2025-04-01 08:00:00' + make_interval(days => gs)
 FROM generate_series(1, 25) AS gs;
 
@@ -314,7 +249,7 @@ SELECT
     ((gs + 6) % 35) + 1,
     1,
     CASE WHEN gs % 2 = 0 THEN 2 ELSE -1 END,
-    format('Ajuste operativo %02s', gs),
+    format('Ajuste operativo %s', lpad(gs::text, 2, '0')),
     TIMESTAMP '2025-04-05 09:00:00' + make_interval(days => gs)
 FROM generate_series(1, 25) AS gs;
 
@@ -332,11 +267,14 @@ INSERT INTO pedido (
     confirmado_en
 )
 SELECT
-    CASE WHEN gs % 4 = 0 THEN NULL ELSE ((gs - 1) % 20) + 2 END,
-    format('ORD-SEED-%03s', gs),
-    format('Cliente Pedido %02s', gs),
-    format('pedido%02s@proyecto2.local', gs),
-    format('5599-%04s', 1000 + gs),
+    CASE
+        WHEN gs % 4 = 0 THEN NULL
+        ELSE (SELECT id_usuario FROM usuario WHERE email = 'cliente@proyecto3.local')
+    END,
+    format('ORD-SEED-%s', lpad(gs::text, 3, '0')),
+    format('Cliente Pedido %s', lpad(gs::text, 2, '0')),
+    format('pedido%s@proyecto3.local', lpad(gs::text, 2, '0')),
+    format('5599-%s', lpad((1000 + gs)::text, 4, '0')),
     CASE WHEN gs % 3 = 0 THEN 'delivery' ELSE 'pickup' END,
     CASE
         WHEN gs % 7 = 0 THEN 'cancelado'
@@ -344,7 +282,7 @@ SELECT
         ELSE 'listo_para_retiro'
     END,
     CASE WHEN gs % 7 = 0 THEN 'rechazado' ELSE 'aprobado' END,
-    format('Pedido sembrado %02s', gs),
+    format('Pedido sembrado %s', lpad(gs::text, 2, '0')),
     TIMESTAMP '2025-05-01 09:00:00' + make_interval(hours => gs * 5),
     TIMESTAMP '2025-05-01 09:20:00' + make_interval(hours => gs * 5)
 FROM generate_series(1, 30) AS gs;
@@ -399,7 +337,7 @@ SELECT
     END,
     totals.total_pedido,
     CASE WHEN p.estado_pago = 'rechazado' THEN 'rechazado' ELSE 'aprobado' END,
-    format('PAY-SEED-%03s', p.id_pedido),
+    format('PAY-SEED-%s', lpad(p.id_pedido::text, 3, '0')),
     p.confirmado_en
 FROM pedido p
 JOIN (
@@ -446,3 +384,5 @@ SELECT
     END,
     p.confirmado_en
 FROM pedido p;
+
+COMMIT;

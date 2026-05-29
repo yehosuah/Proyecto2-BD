@@ -13,7 +13,7 @@
         <strong>{{ money(item.precio_unitario * item.cantidad) }}</strong>
       </div>
     </div>
-    <div class="hero-copy__actions">
+    <div v-if="canChangeStatus" class="hero-copy__actions">
       <button class="button button--ghost" @click="changeStatus('entregado')">Marcar entregado</button>
       <button class="button button--accent" @click="changeStatus('cancelado')">Cancelar</button>
     </div>
@@ -21,10 +21,12 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import { requireRouteAccess } from "../../lib/access";
+import { hasRole, SALES_WRITE_ROLES } from "../../lib/roles";
+import { sessionState } from "../../stores/session";
 
 import StatusPill from "../../components/StatusPill.vue";
 import { apiRequest } from "../../lib/api";
@@ -32,6 +34,7 @@ import { apiRequest } from "../../lib/api";
 const route = useRoute();
 const router = useRouter();
 const detail = ref(null);
+const canChangeStatus = computed(() => hasRole(sessionState.user?.rol, SALES_WRITE_ROLES));
 
 function money(value) {
   return new Intl.NumberFormat("es-GT", { style: "currency", currency: "GTQ" }).format(value);
@@ -42,6 +45,7 @@ async function loadDetail() {
 }
 
 async function changeStatus(status) {
+  if (!canChangeStatus.value) return;
   await apiRequest(`/api/admin/sales/${route.params.codigo}`, {
     method: "PATCH",
     body: { estado_pedido: status },
@@ -54,4 +58,3 @@ onMounted(async () => {
   await loadDetail();
 });
 </script>
-

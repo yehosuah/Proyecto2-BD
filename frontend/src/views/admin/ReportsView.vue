@@ -1,6 +1,6 @@
 <template>
   <div class="surface-stack page-stack">
-    <section class="card-surface filters-row">
+    <section v-if="canViewSalesReports" class="card-surface filters-row">
       <div>
         <h1>Reportes</h1>
         <p class="muted-copy">Ventas por fecha, top productos y alertas de stock.</p>
@@ -14,7 +14,7 @@
     </section>
 
     <section class="admin-grid">
-      <article class="card-surface admin-chart">
+      <article v-if="canViewSalesReports" class="card-surface admin-chart">
         <div class="card-header"><h2>Ventas por fecha</h2></div>
         <div class="sparkline sparkline--wide">
           <span v-for="point in sales.series" :key="point.fecha" :style="{ height: `${Math.max(18, point.ventas_totales / 60)}px` }"></span>
@@ -31,7 +31,7 @@
         </table>
       </article>
 
-      <article class="card-surface">
+      <article v-if="canViewTopProducts" class="card-surface">
         <div class="card-header"><h2>Top productos</h2></div>
         <div class="mini-cart">
           <div v-for="item in topProducts" :key="item.sku" class="mini-cart__row">
@@ -41,7 +41,7 @@
         </div>
       </article>
 
-      <article class="card-surface">
+      <article v-if="canViewLowStock" class="card-surface">
         <div class="card-header"><h2>Stock bajo</h2></div>
         <div class="mini-cart">
           <div v-for="item in lowStock" :key="item.sku" class="mini-cart__row">
@@ -60,6 +60,8 @@ import { useRoute, useRouter } from "vue-router";
 
 import { requireRouteAccess } from "../../lib/access";
 import { apiFileUrl, apiRequest } from "../../lib/api";
+import { hasRole, INVENTORY_REPORT_ROLES, SALES_REPORT_ROLES } from "../../lib/roles";
+import { sessionState } from "../../stores/session";
 
 
 const route = useRoute();
@@ -68,6 +70,9 @@ const sales = reactive({ series: [], summary: null });
 const topProducts = ref([]);
 const lowStock = ref([]);
 const filters = reactive({ start_date: "", end_date: "" });
+const canViewSalesReports = computed(() => hasRole(sessionState.user?.rol, SALES_REPORT_ROLES));
+const canViewTopProducts = canViewSalesReports;
+const canViewLowStock = computed(() => hasRole(sessionState.user?.rol, INVENTORY_REPORT_ROLES));
 
 const csvUrl = computed(() =>
   apiFileUrl("/api/admin/reports/sales/export.csv", {
@@ -85,15 +90,31 @@ async function loadReports() {
     start_date: filters.start_date || undefined,
     end_date: filters.end_date || undefined,
   };
-  const [salesPayload, topPayload, lowPayload] = await Promise.all([
-    apiRequest("/api/admin/reports/sales", { params }),
-    apiRequest("/api/admin/reports/top-products"),
-    apiRequest("/api/admin/reports/low-stock"),
-  ]);
-  sales.series = salesPayload.series;
-  sales.summary = salesPayload.summary;
-  topProducts.value = topPayload.items;
-  lowStock.value = lowPayload.items;
+  const requests = [];
+
+  if (canViewSalesReports.value) {
+    requests.push(
+      apiRequest("/api/admin/reports/sales", { params }).then((payload) => {
+        sales.series = payload.series;
+        sales.summary = payload.summary;
+      }),
+    );
+    requests.push(
+      apiRequest("/api/admin/reports/top-products").then((payload) => {
+        topProducts.value = payload.items;
+      }),
+    );
+  }
+
+  if (canViewLowStock.value) {
+    requests.push(
+      apiRequest("/api/admin/reports/low-stock").then((payload) => {
+        lowStock.value = payload.items;
+      }),
+    );
+  }
+
+  await Promise.all(requests);
 }
 
 onMounted(async () => {
@@ -101,4 +122,3 @@ onMounted(async () => {
   await loadReports();
 });
 </script>
-

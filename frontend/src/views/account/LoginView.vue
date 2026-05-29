@@ -23,8 +23,11 @@
     <aside class="card-surface">
       <h2>Credenciales de prueba</h2>
       <div class="demo-creds">
-        <p><strong>Admin:</strong> admin@proyecto2.local / admin123</p>
-        <p><strong>Cliente:</strong> cliente@proyecto2.local / client123</p>
+        <p><strong>Admin:</strong> admin@proyecto3.local / admin123</p>
+        <p><strong>Inventario:</strong> inventario@proyecto3.local / inventario123</p>
+        <p><strong>Ventas:</strong> ventas@proyecto3.local / ventas123</p>
+        <p><strong>Reportes:</strong> reportes@proyecto3.local / reportes123</p>
+        <p><strong>Cliente:</strong> cliente@proyecto3.local / cliente123</p>
       </div>
     </aside>
   </div>
@@ -34,21 +37,21 @@
 import { reactive, ref } from "vue";
 import { RouterLink, useRoute, useRouter } from "vue-router";
 
+import { getBackofficeHomePath } from "../../lib/roles";
 import { loginUser } from "../../stores/session";
 
 const route = useRoute();
 const router = useRouter();
 const error = ref("");
-const form = reactive({ email: "admin@proyecto2.local", password: "admin123" });
+const form = reactive({ email: "admin@proyecto3.local", password: "admin123" });
 
 async function submit() {
   try {
     const user = await loginUser(form);
-    const redirect = route.query.redirect || (user.rol === "admin" ? "/admin" : "/account/profile");
+    const redirect = route.query.redirect || getBackofficeHomePath(user.rol) || "/account/profile";
     router.push(redirect);
   } catch (requestError) {
     error.value = requestError.message;
   }
 }
 </script>
-

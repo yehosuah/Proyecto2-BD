@@ -21,7 +21,7 @@ La parte ejecutable del diseno esta en estos archivos:
 Este diseno usa las siguientes decisiones de negocio:
 
 - Frontend en Vue con tienda publica, area de cuenta cliente y panel administrativo.
-- Backend en FastAPI con SQL explicito y sin ORM.
+- Backend en FastAPI usando SQLAlchemy ORM para CRUD y SQL explicito para reportes avanzados cuando conviene.
 - PostgreSQL como DBMS.
 - Pago simulado interno, sin integracion con pasarelas reales.
 - Soporte para `delivery` y `pickup`.
@@ -35,7 +35,7 @@ La meta del modelo es priorizar claridad academica, trazabilidad de reglas de ne
 
 ## 3. Entidades principales
 
-- `rol`: define los tipos de usuario del sistema (`admin`, `cliente`).
+- `rol`: define los tipos de usuario del sistema (`admin`, `inventario`, `ventas`, `reportes`, `cliente`).
 - `usuario`: almacena cuentas autenticadas.
 - `sesion_usuario`: conserva sesiones de login/logout.
 - `categoria`: clasifica productos del catalogo.
@@ -421,54 +421,94 @@ El archivo `db/init/002_seed.sql` contiene datos iniciales para levantar y proba
 
 El checkout crea el pedido, registra el pago y descuenta stock dentro de una transaccion consistente. La operacion inicia con `BEGIN` y `SET TRANSACTION ISOLATION LEVEL SERIALIZABLE`, valida el carrito, bloquea los productos con `SELECT ... FOR UPDATE`, verifica stock, inserta `pedido`, `detalle_pedido` y `pago`, y despues confirma o rechaza la compra segun el resultado del pago simulado. Si el pago se aprueba, se descuenta `producto.stock_actual` y se registra el cambio en `historial_estado_pedido`; si se rechaza, el stock no cambia. Cualquier error, conflicto o falta de stock termina en `ROLLBACK`.
 
-### 11.2 Reabastecimiento
+### 11.2 Catalogo e inventario
 
-El reabastecimiento aumenta inventario con trazabilidad. La transaccion inserta el encabezado en `reabastecimiento`, guarda las lineas en `detalle_reabastecimiento` y suma las cantidades al `stock_actual` de cada producto afectado. Si ocurre un error, la operacion se revierte con `ROLLBACK`.
+Las altas y actualizaciones de categorias/productos pasan por procedimientos almacenados para cumplir el requisito de Proyecto 3. El backend tambien usa SQLAlchemy ORM para operaciones CRUD concretas como sesiones, usuarios cliente y eliminaciones controladas de categorias/productos.
 
-### 11.3 Ajuste directo de inventario
+### 11.3 Ventas
 
-El ajuste directo permite correcciones administrativas controladas. La transaccion bloquea el producto, registra la fila en `ajuste_inventario`, actualiza `stock_actual` y valida que el inventario no quede negativo antes de confirmar. Si la validacion falla, se revierte el cambio.
+El cambio de estado de una venta se hace con una transaccion explicita desde backend e invoca `sp_update_sale_status`. Asi el cambio de `pedido.estado_pedido` y la fila de `historial_estado_pedido` quedan juntos.
 
-### 11.4 Login con sesion
+### 11.4 Reabastecimiento
+
+El reabastecimiento aumenta inventario con trazabilidad. La transaccion crea el encabezado con `sp_create_restock`, agrega lineas con `sp_add_restock_detail` y actualiza el stock de los productos afectados. Si ocurre un error, la operacion se revierte con `ROLLBACK`.
+
+### 11.5 Ajuste directo de inventario
+
+El ajuste directo usa `sp_apply_inventory_adjustment`. La operacion bloquea el producto, registra la fila en `ajuste_inventario`, actualiza `stock_actual` y valida que el inventario no quede negativo antes de confirmar.
+
+### 11.6 Login con sesion
 
 El login valida credenciales contra `usuario`, genera un token o identificador de sesion y guarda su hash en `sesion_usuario`. El logout conserva trazabilidad marcando `revocada_en`.
 
-## 12. Resumen
+## 12. Uso de ORM y SQL explicito
 
-El diseno separa la explicacion academica en este documento, la traduccion fisica en `db/init/001_schema.sql` y los datos iniciales en `db/init/002_seed.sql`.
+Proyecto 3 usa SQLAlchemy ORM de forma obligatoria en operaciones CRUD reales del backend: usuarios cliente, sesiones de usuario y eliminaciones controladas de categorias/productos. El objetivo es cubrir el requisito de ORM sin perder la parte SQL que corresponde a la materia.
 
-## 13. Modelo de seguridad DBMS
+El SQL explicito se mantiene donde aporta mas claridad para bases de datos: reportes, agregaciones, uso de `vw_resumen_ventas`, bloqueo de filas, llamadas a procedimientos almacenados y transacciones manuales. Por eso el proyecto no queda como "solo ORM"; usa ORM para CRUD y SQL directo para las partes avanzadas.
 
-El control de acceso DBMS se define en `db/init/003_security_roles.sql` usando roles operativos de PostgreSQL con privilegios minimos por caso de uso.
+## 13. Procedimientos almacenados
 
-### 13.1 Mapeo explicito: rol de aplicacion ↔ rol DBMS
+Los procedimientos esperados para esta entrega son:
+
+| Procedimiento | Uso desde backend |
+| --- | --- |
+| `sp_create_category` | Crear categoria desde el panel de catalogo |
+| `sp_update_category` | Actualizar categoria existente |
+| `sp_create_product` | Crear producto con SKU, precio, categoria y stock |
+| `sp_update_product` | Actualizar datos de producto |
+| `sp_update_sale_status` | Cambiar estado de venta y dejar historial |
+| `sp_apply_inventory_adjustment` | Registrar ajuste directo y modificar stock |
+| `sp_create_restock` | Crear encabezado de reabastecimiento |
+| `sp_add_restock_detail` | Agregar detalle de reabastecimiento y sumar inventario |
+
+Estos procedimientos se invocan desde FastAPI. Los permisos de ejecucion deben seguir los mismos roles DBMS del modulo correspondiente: catalogo para `app_admin` y `app_inventory`, ventas para `app_admin` y `app_sales`, inventario para `app_admin` y `app_inventory`.
+
+## 14. Modelo de seguridad DBMS
+
+El control de acceso DBMS se define en `db/init/003_security_roles.sql`. Para Proyecto 3 se usan exactamente cinco roles operativos de PostgreSQL, creados con `CREATE ROLE` y ajustados con `GRANT` y `REVOKE`.
+
+### 14.1 Mapeo explicito: rol de aplicacion a rol DBMS
 
 | Rol de aplicacion (`rol.nombre`) | Rol DBMS operativo | Uso principal |
 | --- | --- | --- |
 | `admin` | `app_admin` | Gestion completa de catalogo, inventario, pedidos, reportes y auditoria operativa |
-| `cliente` | `app_cliente` | Navegacion de catalogo, checkout autenticado y consulta de sus pedidos/sesiones |
-| `guest` (sin fila en `rol`) | `app_invitado` | Navegacion de catalogo y checkout invitado con privilegios minimos |
+| `inventario` | `app_inventory` | Catalogo, stock, ajustes y reabastecimientos |
+| `ventas` | `app_sales` | Pedidos, pagos y cambios de estado de venta |
+| `reportes` | `app_reporting` | Lectura para reportes, vistas y exportaciones |
+| `cliente` | `app_customer` | Registro, sesion, catalogo, checkout autenticado y pedidos propios |
 
-### 13.2 Matriz de permisos por rol DBMS
+No se documenta un sexto rol DBMS para invitados. El checkout publico sigue existiendo como flujo de la aplicacion, pero el acceso a la base se controla desde backend.
+
+### 14.2 Matriz de permisos por rol DBMS
 
 | Nombre del rol DBMS | Tablas accesibles | Operaciones permitidas | Restricciones |
 | --- | --- | --- | --- |
-| `app_admin` | Todas las tablas del esquema `public` + `vw_resumen_ventas` | `SELECT/INSERT/UPDATE/DELETE` | Acceso operativo total; no se restringen columnas |
-| `app_cliente` | `rol`, `categoria`, `proveedor`, `producto`, `usuario`, `sesion_usuario`, `pedido`, `direccion_entrega`, `detalle_pedido`, `pago`, `historial_estado_pedido`, `vw_resumen_ventas` | `SELECT` en catalogo y consulta; `INSERT/UPDATE` en `sesion_usuario`; `INSERT` en flujo de checkout | Sin lectura de `usuario.password_hash`; sin `DELETE`; sin escritura sobre `producto`/inventario |
-| `app_invitado` | `categoria`, `producto`, `pedido`, `direccion_entrega`, `detalle_pedido`, `pago`, `vw_resumen_ventas` | `SELECT` de catalogo/reportes basicos + `INSERT` de checkout | Solo lectura en catalogo; sin `UPDATE/DELETE`; sin acceso a tablas de usuario, inventario o administracion |
+| `app_admin` | Todas las tablas del esquema `public` y `vw_resumen_ventas` | `SELECT/INSERT/UPDATE/DELETE` | Acceso operativo completo |
+| `app_inventory` | `categoria`, `proveedor`, `producto`, `reabastecimiento`, `detalle_reabastecimiento`, `ajuste_inventario`, pedidos para consulta | Lectura de catalogo y pedidos; escritura en catalogo e inventario | Sin permisos sobre `usuario`, `sesion_usuario` ni `pago` |
+| `app_sales` | `producto`, `categoria`, `proveedor`, `pedido`, `direccion_entrega`, `detalle_pedido`, `pago`, `historial_estado_pedido` | Lectura de catalogo; creacion y actualizacion del ciclo de venta | Sin administracion de usuarios ni inventario |
+| `app_reporting` | Tablas del esquema `public` y `vw_resumen_ventas` | `SELECT` | Sin `INSERT`, `UPDATE` ni `DELETE` |
+| `app_customer` | `usuario`, `sesion_usuario`, `categoria`, `producto`, `pedido`, `direccion_entrega`, `detalle_pedido`, `pago`, `historial_estado_pedido`, `vw_resumen_ventas` | Registro/sesion, lectura de catalogo y creacion de pedidos propios | Sin acceso administrativo a roles, proveedores, reabastecimientos ni ajustes |
 
-### 13.3 Ejemplos de `GRANT` / `REVOKE` usados en `003_security_roles.sql`
+### 14.3 Ejemplos de `GRANT` y `REVOKE`
 
 Ejemplos representativos del script:
 
+- `REVOKE ALL ON SCHEMA public FROM PUBLIC;`
+- `GRANT USAGE ON SCHEMA public TO app_admin, app_inventory, app_sales, app_reporting, app_customer;`
 - `GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_admin;`
-- `REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC;`
-- `GRANT SELECT ON rol, categoria, proveedor, producto TO app_cliente;`
-- `REVOKE SELECT(password_hash) ON usuario FROM app_cliente;`
-- `GRANT INSERT ON pedido, direccion_entrega, detalle_pedido, pago TO app_invitado;`
-- `REVOKE UPDATE, DELETE ON pedido, direccion_entrega, detalle_pedido, pago FROM app_invitado;`
+- `GRANT SELECT, INSERT ON reabastecimiento, detalle_reabastecimiento, ajuste_inventario TO app_inventory;`
+- `GRANT SELECT, INSERT, UPDATE ON pedido, direccion_entrega, detalle_pedido, pago, historial_estado_pedido TO app_sales;`
+- `GRANT SELECT ON ALL TABLES IN SCHEMA public TO app_reporting;`
+- `GRANT SELECT, INSERT, UPDATE ON usuario TO app_customer;`
+- `REVOKE ALL ON rol, proveedor, reabastecimiento, detalle_reabastecimiento, ajuste_inventario FROM app_customer;`
 
-### 13.4 Permisos sobre vistas y procedimientos
+### 14.4 Permisos sobre vistas y procedimientos
 
-- **Vistas**: `vw_resumen_ventas` recibe `GRANT SELECT` para `app_cliente` y `app_invitado`, y acceso total para `app_admin` por la politica global de tablas del esquema.
-- **Procedimientos/funciones**: en el estado actual del proyecto no hay procedimientos almacenados ni funciones operativas custom; por tanto, `003_security_roles.sql` no define `GRANT EXECUTE` adicionales. Si se agregan, se recomienda otorgar `EXECUTE` solo a `app_admin` o a un rol tecnico especifico por caso de uso.
+`vw_resumen_ventas` se mantiene para reportes. `app_reporting` tiene lectura, `app_admin` entra por su permiso general y los demas roles solo deben recibir acceso si una pantalla lo necesita.
+
+Los procedimientos almacenados deben tener `GRANT EXECUTE` solo para los roles que los usan. Por ejemplo, los procedimientos de catalogo para `app_admin` y `app_inventory`, el cambio de estado para `app_admin` y `app_sales`, y los procedimientos de inventario para `app_admin` y `app_inventory`.
+
+## 15. Resumen
+
+El diseno separa la explicacion academica en este documento, la traduccion fisica en `db/init/001_schema.sql`, los datos iniciales en `db/init/002_seed.sql`, la seguridad DBMS en `db/init/003_security_roles.sql` y las operaciones avanzadas en procedimientos almacenados llamados desde FastAPI.

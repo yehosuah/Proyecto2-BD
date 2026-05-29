@@ -1,8 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field
+from sqlalchemy import func, select
 
+from app.db import procedures
 from app.db.connection import get_connection
-from app.dependencies.auth import require_any_role, require_role
+from app.db.models import Categoria, DetallePedido, Producto
+from app.db.orm import session_scope
+from app.dependencies.auth import require_any_permission, require_permission
 from app.lib.queries import build_sales_report_query, export_rows_to_csv
 
 
@@ -36,7 +40,7 @@ def admin_health() -> dict[str, str]:
 
 
 @router.get("/categories")
-def admin_categories(admin: dict = Depends(require_any_role(["admin", "catalogo"]))) -> dict:
+def admin_categories(admin: dict = Depends(require_permission("products:read"))) -> dict:
     with get_connection() as conn:
         rows = conn.execute(
             """
@@ -49,61 +53,60 @@ def admin_categories(admin: dict = Depends(require_any_role(["admin", "catalogo"
 
 
 @router.post("/categories", status_code=status.HTTP_201_CREATED)
-def create_category(payload: CategoryPayload, admin: dict = Depends(require_role("admin"))) -> dict:
+def create_category(payload: CategoryPayload, admin: dict = Depends(require_permission("products:write"))) -> dict:
     with get_connection() as conn:
-        created = conn.execute(
-            """
-            INSERT INTO categoria (nombre, descripcion, activa)
-            VALUES (%s, %s, %s)
-            RETURNING *
-            """,
-            (payload.nombre, payload.descripcion, payload.activa),
-        ).fetchone()
-        conn.commit()
+        try:
+            created = procedures.create_category(
+                conn,
+                nombre=payload.nombre,
+                descripcion=payload.descripcion,
+                activa=payload.activa,
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
     return created
 
 
 @router.put("/categories/{category_id}")
-def update_category(category_id: int, payload: CategoryPayload, admin: dict = Depends(require_role("admin"))) -> dict:
+def update_category(category_id: int, payload: CategoryPayload, admin: dict = Depends(require_permission("products:write"))) -> dict:
     with get_connection() as conn:
-        updated = conn.execute(
-            """
-            UPDATE categoria
-            SET nombre = %s,
-                descripcion = %s,
-                activa = %s
-            WHERE id_categoria = %s
-            RETURNING *
-            """,
-            (payload.nombre, payload.descripcion, payload.activa, category_id),
-        ).fetchone()
-        if not updated:
-            raise HTTPException(status_code=404, detail="Categoria no encontrada.")
-        conn.commit()
+        try:
+            updated = procedures.update_category(
+                conn,
+                category_id=category_id,
+                nombre=payload.nombre,
+                descripcion=payload.descripcion,
+                activa=payload.activa,
+            )
+            if not updated:
+                conn.rollback()
+                raise HTTPException(status_code=404, detail="Categoria no encontrada.")
+            conn.commit()
+        except HTTPException:
+            raise
+        except Exception:
+            conn.rollback()
+            raise
     return updated
 
 
 @router.delete("/categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_category(category_id: int, admin: dict = Depends(require_role("admin"))) -> Response:
-    with get_connection() as conn:
-        in_use = conn.execute(
-            "SELECT 1 FROM producto WHERE id_categoria = %s LIMIT 1",
-            (category_id,),
-        ).fetchone()
+def delete_category(category_id: int, admin: dict = Depends(require_permission("products:write"))) -> Response:
+    with session_scope() as session:
+        category = session.get(Categoria, category_id)
+        if not category:
+            raise HTTPException(status_code=404, detail="Categoria no encontrada.")
+        in_use = session.scalar(select(func.count()).select_from(Producto).where(Producto.id_categoria == category_id))
         if in_use:
             raise HTTPException(status_code=409, detail="La categoria tiene productos asociados.")
-        deleted = conn.execute(
-            "DELETE FROM categoria WHERE id_categoria = %s RETURNING id_categoria",
-            (category_id,),
-        ).fetchone()
-        if not deleted:
-            raise HTTPException(status_code=404, detail="Categoria no encontrada.")
-        conn.commit()
+        session.delete(category)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/products")
-def admin_products(admin: dict = Depends(require_any_role(["admin", "catalogo", "inventario", "ventas"]))) -> dict:
+def admin_products(admin: dict = Depends(require_permission("products:read"))) -> dict:
     with get_connection() as conn:
         rows = conn.execute(
             """
@@ -129,97 +132,74 @@ def admin_products(admin: dict = Depends(require_any_role(["admin", "catalogo", 
 
 
 @router.post("/products", status_code=status.HTTP_201_CREATED)
-def create_product(payload: ProductPayload, admin: dict = Depends(require_role("admin"))) -> dict:
+def create_product(payload: ProductPayload, admin: dict = Depends(require_permission("products:write"))) -> dict:
     with get_connection() as conn:
-        created = conn.execute(
-            """
-            INSERT INTO producto (
-                id_categoria,
-                id_proveedor,
-                sku,
-                nombre,
-                descripcion,
-                precio_unitario,
-                stock_actual,
-                activo
+        try:
+            created = procedures.create_product(
+                conn,
+                id_categoria=payload.id_categoria,
+                id_proveedor=payload.id_proveedor,
+                sku=payload.sku,
+                nombre=payload.nombre,
+                descripcion=payload.descripcion,
+                precio_unitario=payload.precio_unitario,
+                stock_actual=payload.stock_actual,
+                activo=payload.activo,
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING *
-            """,
-            (
-                payload.id_categoria,
-                payload.id_proveedor,
-                payload.sku,
-                payload.nombre,
-                payload.descripcion,
-                payload.precio_unitario,
-                payload.stock_actual,
-                payload.activo,
-            ),
-        ).fetchone()
-        conn.commit()
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
     return created
 
 
 @router.put("/products/{product_id}")
-def update_product(product_id: int, payload: ProductPayload, admin: dict = Depends(require_role("admin"))) -> dict:
+def update_product(product_id: int, payload: ProductPayload, admin: dict = Depends(require_permission("products:write"))) -> dict:
     with get_connection() as conn:
-        updated = conn.execute(
-            """
-            UPDATE producto
-            SET id_categoria = %s,
-                id_proveedor = %s,
-                sku = %s,
-                nombre = %s,
-                descripcion = %s,
-                precio_unitario = %s,
-                stock_actual = %s,
-                activo = %s,
-                actualizado_en = CURRENT_TIMESTAMP
-            WHERE id_producto = %s
-            RETURNING *
-            """,
-            (
-                payload.id_categoria,
-                payload.id_proveedor,
-                payload.sku,
-                payload.nombre,
-                payload.descripcion,
-                payload.precio_unitario,
-                payload.stock_actual,
-                payload.activo,
-                product_id,
-            ),
-        ).fetchone()
-        if not updated:
-            raise HTTPException(status_code=404, detail="Producto no encontrado.")
-        conn.commit()
+        try:
+            updated = procedures.update_product(
+                conn,
+                product_id=product_id,
+                id_categoria=payload.id_categoria,
+                id_proveedor=payload.id_proveedor,
+                sku=payload.sku,
+                nombre=payload.nombre,
+                descripcion=payload.descripcion,
+                precio_unitario=payload.precio_unitario,
+                stock_actual=payload.stock_actual,
+                activo=payload.activo,
+            )
+            if not updated:
+                conn.rollback()
+                raise HTTPException(status_code=404, detail="Producto no encontrado.")
+            conn.commit()
+        except HTTPException:
+            raise
+        except Exception:
+            conn.rollback()
+            raise
     return updated
 
 
 @router.delete("/products/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_product(product_id: int, admin: dict = Depends(require_role("admin"))) -> Response:
-    with get_connection() as conn:
-        in_use = conn.execute(
-            "SELECT 1 FROM detalle_pedido WHERE id_producto = %s LIMIT 1",
-            (product_id,),
-        ).fetchone()
+def delete_product(product_id: int, admin: dict = Depends(require_permission("products:write"))) -> Response:
+    with session_scope() as session:
+        product = session.get(Producto, product_id)
+        if not product:
+            raise HTTPException(status_code=404, detail="Producto no encontrado.")
+        in_use = session.scalar(
+            select(func.count()).select_from(DetallePedido).where(DetallePedido.id_producto == product_id)
+        )
         if in_use:
             raise HTTPException(status_code=409, detail="El producto ya tiene ventas asociadas.")
-        deleted = conn.execute(
-            "DELETE FROM producto WHERE id_producto = %s RETURNING id_producto",
-            (product_id,),
-        ).fetchone()
-        if not deleted:
-            raise HTTPException(status_code=404, detail="Producto no encontrado.")
-        conn.commit()
+        session.delete(product)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/sales")
 def list_sales(
     status_filter: str | None = Query(default=None),
-    admin: dict = Depends(require_any_role(["admin", "ventas", "reportes"])),
+    admin: dict = Depends(require_permission("sales:read")),
 ) -> dict:
     with get_connection() as conn:
         rows = conn.execute(
@@ -245,7 +225,7 @@ def list_sales(
 
 
 @router.get("/sales/{codigo_publico}")
-def get_sale_detail(codigo_publico: str, admin: dict = Depends(require_any_role(["admin", "ventas", "reportes"]))) -> dict:
+def get_sale_detail(codigo_publico: str, admin: dict = Depends(require_permission("sales:read"))) -> dict:
     with get_connection() as conn:
         order = conn.execute(
             """
@@ -294,34 +274,25 @@ def get_sale_detail(codigo_publico: str, admin: dict = Depends(require_any_role(
 def update_sale_status(
     codigo_publico: str,
     payload: SalesStatusPayload,
-    admin: dict = Depends(require_role("admin")),
+    admin: dict = Depends(require_permission("sales:status")),
 ) -> dict:
     with get_connection() as conn:
-        updated = conn.execute(
-            """
-            UPDATE pedido
-            SET estado_pedido = %s
-            WHERE codigo_publico = %s
-            RETURNING id_pedido, codigo_publico, estado_pedido
-            """,
-            (payload.estado_pedido, codigo_publico),
-        ).fetchone()
-        if not updated:
-            raise HTTPException(status_code=404, detail="Venta no encontrada.")
-        conn.execute(
-            """
-            INSERT INTO historial_estado_pedido (
-                id_pedido,
-                id_usuario,
-                estado_anterior,
-                estado_nuevo,
-                nota
+        try:
+            updated = procedures.update_sale_status(
+                conn,
+                codigo_publico=codigo_publico,
+                estado_pedido=payload.estado_pedido,
+                admin_id=admin["id_usuario"],
             )
-            VALUES (%s, %s, NULL, %s, 'Cambio manual desde panel admin.')
-            """,
-            (updated["id_pedido"], admin["id_usuario"], payload.estado_pedido),
-        )
-        conn.commit()
+            if not updated:
+                conn.rollback()
+                raise HTTPException(status_code=404, detail="Venta no encontrada.")
+            conn.commit()
+        except HTTPException:
+            raise
+        except Exception:
+            conn.rollback()
+            raise
     return updated
 
 
@@ -330,7 +301,7 @@ def sales_report(
     start_date: str | None = Query(default=None),
     end_date: str | None = Query(default=None),
     status_filter: str | None = Query(default=None, alias="status"),
-    admin: dict = Depends(require_any_role(["admin", "reportes", "ventas"])),
+    admin: dict = Depends(require_permission("reports:read")),
 ) -> dict:
     params = {"start_date": start_date, "end_date": end_date, "status": status_filter}
     with get_connection() as conn:
@@ -354,7 +325,7 @@ def export_sales_csv(
     start_date: str | None = Query(default=None),
     end_date: str | None = Query(default=None),
     status_filter: str | None = Query(default=None, alias="status"),
-    admin: dict = Depends(require_any_role(["admin", "reportes"])),
+    admin: dict = Depends(require_permission("reports:read")),
 ) -> Response:
     params = {"start_date": start_date, "end_date": end_date, "status": status_filter}
     with get_connection() as conn:
@@ -368,7 +339,7 @@ def export_sales_csv(
 
 
 @router.get("/reports/top-products")
-def top_products(admin: dict = Depends(require_any_role(["admin", "reportes"]))) -> dict:
+def top_products(admin: dict = Depends(require_permission("reports:read"))) -> dict:
     with get_connection() as conn:
         rows = conn.execute(
             """
@@ -390,7 +361,7 @@ def top_products(admin: dict = Depends(require_any_role(["admin", "reportes"])))
 
 
 @router.get("/reports/low-stock")
-def low_stock_report(admin: dict = Depends(require_any_role(["admin", "reportes", "inventario"]))) -> dict:
+def low_stock_report(admin: dict = Depends(require_any_permission(["reports:read", "inventory:read"]))) -> dict:
     with get_connection() as conn:
         rows = conn.execute(
             """

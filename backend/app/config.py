@@ -25,8 +25,8 @@ class Settings:
 def get_settings() -> Settings:
     return Settings(
         app_env=os.getenv("APP_ENV", "development"),
-        postgres_db=os.getenv("POSTGRES_DB", "proyecto2_bd"),
-        postgres_user=os.getenv("POSTGRES_USER", "proy2"),
+        postgres_db=os.getenv("POSTGRES_DB", "proyecto3_bd"),
+        postgres_user=os.getenv("POSTGRES_USER", "proy3"),
         postgres_password=os.getenv("POSTGRES_PASSWORD", "secret"),
         postgres_host=os.getenv("POSTGRES_HOST", "localhost"),
         postgres_port=int(os.getenv("POSTGRES_PORT", "55432")),

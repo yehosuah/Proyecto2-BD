@@ -71,7 +71,7 @@ def test_client_registration_session_and_logout_flow():
 
 def test_admin_can_crud_categories_and_products():
     client = TestClient(create_app())
-    _login(client, "admin@proyecto2.local", "admin123")
+    _login(client, "admin@proyecto3.local", "admin123")
 
     category_name = f"Categoria {uuid4().hex[:6]}"
     category_response = client.post(
@@ -194,7 +194,7 @@ def test_checkout_paths_history_and_sales_report_export():
     )
 
     admin_client = TestClient(create_app())
-    _login(admin_client, "admin@proyecto2.local", "admin123")
+    _login(admin_client, "admin@proyecto3.local", "admin123")
 
     sales_report = admin_client.get("/api/admin/reports/sales")
     assert sales_report.status_code == 200, sales_report.text

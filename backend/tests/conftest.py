@@ -20,7 +20,7 @@ def client() -> TestClient:
 def login_admin(client: TestClient) -> TestClient:
     response = client.post(
         "/api/auth/login",
-        json={"email": "admin@proyecto2.local", "password": "admin123"},
+        json={"email": "admin@proyecto3.local", "password": "admin123"},
     )
     assert response.status_code == 200, response.text
     return client
@@ -30,7 +30,7 @@ def login_admin(client: TestClient) -> TestClient:
 def login_cliente(client: TestClient) -> TestClient:
     response = client.post(
         "/api/auth/login",
-        json={"email": "cliente@proyecto2.local", "password": "cliente123"},
+        json={"email": "cliente@proyecto3.local", "password": "cliente123"},
     )
     assert response.status_code == 200, response.text
     return client

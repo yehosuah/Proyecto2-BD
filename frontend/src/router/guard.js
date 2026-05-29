@@ -3,7 +3,7 @@ export function resolveGuardTarget(to, sessionState) {
     return { name: "account-login", query: { redirect: to.fullPath } };
   }
   if (to.meta?.allowedRoles?.length && !to.meta.allowedRoles.includes(sessionState.user?.rol)) {
-    return { name: "forbidden" };
+    return { name: "forbidden", query: { from: to.fullPath } };
   }
   return true;
 }

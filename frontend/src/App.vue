@@ -2,13 +2,9 @@
   <div class="site-shell" :class="`site-shell--${surface}`">
     <template v-if="surface === 'admin'">
       <aside class="admin-sidebar">
-        <RouterLink class="admin-sidebar__brand" to="/admin">Tienda Natura</RouterLink>
+        <RouterLink class="admin-sidebar__brand" :to="backofficeHomePath || '/'">Tienda Natura</RouterLink>
         <nav class="admin-sidebar__nav">
-          <RouterLink to="/admin">Admin</RouterLink>
-          <RouterLink to="/admin/products">Productos</RouterLink>
-          <RouterLink to="/admin/categories">Categorias</RouterLink>
-          <RouterLink to="/admin/sales">Ventas</RouterLink>
-          <RouterLink to="/admin/reports">Reportes</RouterLink>
+          <RouterLink v-for="item in backofficeNavItems" :key="item.to" :to="item.to">{{ item.label }}</RouterLink>
         </nav>
         <RouterLink class="admin-sidebar__store" to="/">Ver tienda</RouterLink>
       </aside>
@@ -24,7 +20,7 @@
         </nav>
         <div class="store-tools">
           <RouterLink class="store-tools__cart" to="/checkout">Carrito {{ cartState.items.length }}</RouterLink>
-          <RouterLink v-if="['admin', 'app_admin', 'app_inventory'].includes(sessionState.user?.rol)" to="/admin">Admin</RouterLink>
+          <RouterLink v-if="backofficeHomePath" :to="backofficeHomePath">Admin</RouterLink>
         </div>
       </header>
 
@@ -39,11 +35,14 @@
 import { computed, onMounted } from "vue";
 import { RouterLink, RouterView, useRoute } from "vue-router";
 
+import { getBackofficeHomePath, getBackofficeNavItems } from "./lib/roles";
 import { cartState, ensureCartLoaded } from "./stores/cart";
 import { ensureSessionLoaded, sessionState } from "./stores/session";
 
 const route = useRoute();
 const surface = computed(() => route.meta.surface || "store");
+const backofficeHomePath = computed(() => getBackofficeHomePath(sessionState.user?.rol));
+const backofficeNavItems = computed(() => getBackofficeNavItems(sessionState.user?.rol));
 
 onMounted(async () => {
   ensureCartLoaded();

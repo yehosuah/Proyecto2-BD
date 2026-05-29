@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
+from app.db import procedures
 from app.db.connection import get_connection
-from app.dependencies.auth import require_any_role
+from app.dependencies.auth import require_permission
 
 
 router = APIRouter()
@@ -32,7 +33,7 @@ def inventory_health() -> dict[str, str]:
 
 
 @router.get("/low-stock")
-def low_stock(admin: dict = Depends(require_any_role(["admin", "inventario"]))) -> dict:
+def low_stock(admin: dict = Depends(require_permission("inventory:read"))) -> dict:
     with get_connection() as conn:
         rows = conn.execute(
             """
@@ -57,89 +58,68 @@ def low_stock(admin: dict = Depends(require_any_role(["admin", "inventario"]))) 
 
 
 @router.post("/adjustments", status_code=status.HTTP_201_CREATED)
-def create_adjustment(payload: InventoryAdjustmentPayload, admin: dict = Depends(require_any_role(["admin", "inventario"]))) -> dict:
+def create_adjustment(payload: InventoryAdjustmentPayload, admin: dict = Depends(require_permission("inventory:write"))) -> dict:
     with get_connection() as conn:
-        product = conn.execute(
-            "SELECT id_producto, stock_actual FROM producto WHERE id_producto = %s FOR UPDATE",
-            (payload.id_producto,),
-        ).fetchone()
-        if not product:
-            raise HTTPException(status_code=404, detail="Producto no encontrado.")
-        new_stock = product["stock_actual"] + payload.cantidad_delta
-        if new_stock < 0:
-            conn.rollback()
-            raise HTTPException(status_code=409, detail="El ajuste dejaria stock negativo.")
-
-        created = conn.execute(
-            """
-            INSERT INTO ajuste_inventario (
-                id_producto,
-                id_admin,
-                cantidad_delta,
-                motivo
+        try:
+            product = conn.execute(
+                "SELECT id_producto FROM producto WHERE id_producto = %s",
+                (payload.id_producto,),
+            ).fetchone()
+            if not product:
+                conn.rollback()
+                raise HTTPException(status_code=404, detail="Producto no encontrado.")
+            created = procedures.apply_inventory_adjustment(
+                conn,
+                product_id=payload.id_producto,
+                admin_id=admin["id_usuario"],
+                cantidad_delta=payload.cantidad_delta,
+                motivo=payload.motivo,
             )
-            VALUES (%s, %s, %s, %s)
-            RETURNING *
-            """,
-            (payload.id_producto, admin["id_usuario"], payload.cantidad_delta, payload.motivo),
-        ).fetchone()
-        conn.execute(
-            """
-            UPDATE producto
-            SET stock_actual = %s,
-                actualizado_en = CURRENT_TIMESTAMP
-            WHERE id_producto = %s
-            """,
-            (new_stock, payload.id_producto),
-        )
-        conn.commit()
+            if not created:
+                conn.rollback()
+                raise HTTPException(status_code=409, detail="El ajuste dejaria stock negativo.")
+            conn.commit()
+        except HTTPException:
+            raise
+        except Exception:
+            conn.rollback()
+            raise
     return created
 
 
 @router.post("/restocks", status_code=status.HTTP_201_CREATED)
-def create_restock(payload: RestockPayload, admin: dict = Depends(require_any_role(["admin", "inventario"]))) -> dict:
+def create_restock(payload: RestockPayload, admin: dict = Depends(require_permission("inventory:write"))) -> dict:
     if not payload.detalles:
         raise HTTPException(status_code=422, detail="Debes incluir detalles de reabastecimiento.")
     with get_connection() as conn:
-        restock = conn.execute(
-            """
-            INSERT INTO reabastecimiento (
-                id_proveedor,
-                id_admin,
-                nota
+        try:
+            restock = procedures.create_restock(
+                conn,
+                provider_id=payload.id_proveedor,
+                admin_id=admin["id_usuario"],
+                nota=payload.nota,
             )
-            VALUES (%s, %s, %s)
-            RETURNING *
-            """,
-            (payload.id_proveedor, admin["id_usuario"], payload.nota),
-        ).fetchone()
-
-        for detail in payload.detalles:
-            conn.execute(
-                """
-                INSERT INTO detalle_reabastecimiento (
-                    id_reabastecimiento,
-                    id_producto,
-                    cantidad,
-                    costo_unitario
+            detalles = []
+            for detail in payload.detalles:
+                created_detail = procedures.add_restock_detail(
+                    conn,
+                    restock_id=restock["id_reabastecimiento"],
+                    product_id=detail.id_producto,
+                    cantidad=detail.cantidad,
+                    costo_unitario=detail.costo_unitario,
                 )
-                VALUES (%s, %s, %s, %s)
-                """,
-                (
-                    restock["id_reabastecimiento"],
-                    detail.id_producto,
-                    detail.cantidad,
-                    detail.costo_unitario,
-                ),
-            )
-            conn.execute(
-                """
-                UPDATE producto
-                SET stock_actual = stock_actual + %s,
-                    actualizado_en = CURRENT_TIMESTAMP
-                WHERE id_producto = %s
-                """,
-                (detail.cantidad, detail.id_producto),
-            )
-        conn.commit()
+                if not created_detail:
+                    conn.rollback()
+                    raise HTTPException(
+                        status_code=409,
+                        detail="No se pudo agregar un detalle de reabastecimiento.",
+                    )
+                detalles.append(created_detail)
+            restock["detalles"] = detalles
+            conn.commit()
+        except HTTPException:
+            raise
+        except Exception:
+            conn.rollback()
+            raise
     return restock
